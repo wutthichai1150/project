@@ -58,7 +58,7 @@ include('../includes/navbar_user.php');
                     <input type="email" class="form-control" id="email" name="email" required>
                 </div>
                 <div class="mb-3">
-                    <label for="message" class="form-label">ข้อความ..</label>
+                    <label for="message" class="form-label">ข้อความ</label>
                     <textarea class="form-control" id="message" name="message" rows="5" required></textarea>
                 </div>
                 <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane me-2"></i> ส่งข้อความ</button>
