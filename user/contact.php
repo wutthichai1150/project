@@ -34,7 +34,7 @@ include('../includes/navbar_user.php');
             <h5><i class="fas fa-envelope me-2"></i> อีเมล</h5>
             <p>lungkunroomg@gmail.com</p>
 
-            <h5><i class="fas fa-map me-2"></i> แผนที่..</h5>
+            <h5><i class="fas fa-map me-2"></i> แผนที่</h5>
             <iframe 
                 src="https://www.google.com/maps/embed?pb=!1m17!1m12!1m3!1d987.344175630654!2d99.71007926960772!3d8.164749327002891!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m2!1m1!2zOMKwMDknNTMuMSJOIDk5wrA0MiczOC42IkU!5e0!3m2!1sth!2sth!4v1737983225401!5m2!1sth!2sth" 
                 width="100%" 
