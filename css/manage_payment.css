@@ -1,0 +1,94 @@
+/* manage_payment.css */
+
+/* พื้นหลังและฟอนต์ */
+body {
+    background-color: #f8f9fa;
+    font-family: 'Arial', sans-serif;
+}
+
+/* หัวข้อ */
+h2 {
+    text-align: center;
+    color: #343a40;
+    margin-bottom: 30px;
+}
+
+/* ตาราง */
+table {
+    margin-top: 30px;
+}
+
+.table th, .table td {
+    vertical-align: middle;
+    text-align: center;
+}
+
+.table thead {
+    background-color: #007bff;
+    color: white;
+}
+
+.table-hover tbody tr:hover {
+    background-color: #f1f1f1;
+}
+
+/* ปุ่มการจัดการ */
+.btn-warning, .btn-danger {
+    margin: 0 5px;
+}
+
+/* กล่องคอนเทนเนอร์ */
+.container {
+    max-width: 1200px;
+    margin: auto;
+}
+
+/* ลิงค์ */
+a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.form-inline {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 15px;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.form-inline .form-group {
+    flex: 1;
+}
+
+.form-inline .form-group label {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+}
+
+.form-inline .form-control {
+    width: 150px;
+    height: 40px;
+    font-size: 14px;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid #ced4da;
+    transition: border-color 0.3s;
+}
+
+.form-inline .form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+}
+
+.mb-4 {
+    margin-bottom: 20px;
+}
