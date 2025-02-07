@@ -81,22 +81,20 @@ if (isset($_POST['update_room'])) {
         }
     }
 }
+
 // ถ้าผู้ใช้ส่งข้อมูลฟอร์มสำหรับการเข้าพัก
 if (isset($_POST['add_stay'])) {
-    // รับค่าจากฟอร์ม
     $mem_id = $_POST['mem_id'];
     $stay_start_date = $_POST['stay_start_date'];
-    $stay_end_date = $_POST['stay_end_date'];
 
-    // ตรวจสอบว่าได้รับค่าทุกค่าหรือไม่
-    if (empty($mem_id) || empty($stay_start_date) || empty($stay_end_date)) {
+    if (empty($mem_id) || empty($stay_start_date)) {
         echo "<script>alert('กรุณากรอกข้อมูลให้ครบถ้วน');</script>";
     } else {
         // SQL สำหรับการบันทึกข้อมูลการเข้าพัก
-        $insert_query = "INSERT INTO stay (mem_id, room_id, stay_start_date, stay_end_date) VALUES (?, ?, ?, ?)";
+        $insert_query = "INSERT INTO stay (mem_id, room_id, stay_start_date) VALUES (?, ?, ?)";
         $stmt = $conn->prepare($insert_query);
         if ($stmt) {
-            $stmt->bind_param("iiss", $mem_id, $room_id, $stay_start_date, $stay_end_date);
+            $stmt->bind_param("iis", $mem_id, $room_id, $stay_start_date);
 
             if ($stmt->execute()) {
                 echo "<script>alert('บันทึกข้อมูลการเข้าพักเรียบร้อย!'); window.location.href='manage_room.php?room_id=$room_id';</script>";
@@ -108,52 +106,35 @@ if (isset($_POST['add_stay'])) {
         }
     }
 }
-// ถ้าผู้ใช้ส่งข้อมูลฟอร์มสำหรับการแก้ไขการเข้าพัก
 if (isset($_POST['update_stay'])) {
+    // รับข้อมูลจากฟอร์ม
     $stay_id = $_POST['stay_id'];
     $mem_id = $_POST['mem_id'];
     $stay_start_date = $_POST['stay_start_date'];
-    $stay_end_date = $_POST['stay_end_date'];
 
-    // ตรวจสอบว่าได้รับค่าทุกค่าหรือไม่
-    if (empty($mem_id) || empty($stay_start_date) || empty($stay_end_date)) {
-        echo "<script>alert('กรุณากรอกข้อมูลให้ครบถ้วน');</script>";
-    } else {
-        // SQL สำหรับการอัปเดตข้อมูลการเข้าพัก
-        $update_query = "UPDATE stay SET mem_id = ?, stay_start_date = ?, stay_end_date = ? WHERE stay_id = ?";
-        $stmt = $conn->prepare($update_query);
-        if ($stmt) {
-            $stmt->bind_param("issi", $mem_id, $stay_start_date, $stay_end_date, $stay_id);
+    // เตรียมคำสั่ง SQL เพื่ออัพเดตข้อมูล
+    $update_query = "UPDATE stay SET mem_id = ?, stay_start_date = ? WHERE stay_id = ?";
 
-            if ($stmt->execute()) {
-                echo "<script>alert('ข้อมูลการเข้าพักอัปเดตเรียบร้อยแล้ว!'); window.location.href='manage_room.php?room_id=$room_id';</script>";
-            } else {
-                echo "เกิดข้อผิดพลาดในการอัปเดตข้อมูล: " . $stmt->error;
-            }
+    // ใช้ Prepared Statement เพื่อป้องกัน SQL Injection
+    if ($stmt = $conn->prepare($update_query)) {
+        $stmt->bind_param("isi", $mem_id, $stay_start_date, $stay_id);
+        $stmt->execute();
+        
+        if ($stmt->affected_rows > 0) {
+            // การอัพเดตสำเร็จ
+            echo "<script>alert('อัพเดตข้อมูลการเข้าพักสำเร็จ'); window.location.href = 'manage_room.php?room_id=" . $room_id . "';</script>";
         } else {
-            echo "เกิดข้อผิดพลาดในการเตรียมคำสั่ง SQL";
+            // ถ้าไม่มีการเปลี่ยนแปลง
+            echo "<script>alert('ไม่มีการเปลี่ยนแปลงข้อมูล');</script>";
         }
+        $stmt->close();
+    } else {
+        echo "<script>alert('เกิดข้อผิดพลาดในการอัพเดตข้อมูล');</script>";
     }
 }
 
-// ดึงข้อมูลการเข้าพักที่มีอยู่จากฐานข้อมูล
-$stay_query = "
-    SELECT s.stay_id, s.stay_start_date, s.stay_end_date, m.mem_fname, m.mem_lname, m.mem_phone, m.mem_address 
-    FROM stay s
-    JOIN `member` m ON s.mem_id = m.mem_id
-    WHERE s.room_id = ?
-";
-
-$stmt = $conn->prepare($stay_query);
-if ($stmt) {
-    $stmt->bind_param("i", $room_id);
-    $stmt->execute();
-    $stay_result = $stmt->get_result();
-} else {
-    echo "เกิดข้อผิดพลาดในการดึงข้อมูลการเข้าพัก";
-    exit();
-}
 ?>
+
 
 
 <!DOCTYPE html>
@@ -190,13 +171,20 @@ if ($stmt) {
                 <p class="ms-3 mb-0"><?php echo $room['room_price']; ?></p>
             </div>
             <div class="mb-3 d-flex align-items-center">
-                <i class="bi bi-circle-fill me-2"></i> ฃ
+                <i class="bi bi-circle-fill me-2"></i> 
                 <strong>สถานะห้อง:</strong>
                 <p class="ms-3 mb-0"><?php echo $room['room_status']; ?></p>
             </div>
+
+            <div class="d-flex justify-content-start">
+            <a href="stay_history.php?room_id=<?php echo $room['room_id']; ?>" class="btn btn-primary">
+                รายการเข้าพัก
+            </a>
+        </div>
         </div>
     </div>
 </div>
+
 
 
   <!-- Modal แก้ไข -->
@@ -368,43 +356,65 @@ function deleteRoom(roomId) {
 
 
 
-   <!-- ข้อมูลการเข้าพัก -->
+ <!-- ข้อมูลการเข้าพัก -->
 <hr>
 <h3 class="d-flex justify-content-center align-items-center">
-    ข้อมูลการเข้าพัก
+    ข้อมูลการเข้าพักล่าสุด
     <button class="btn btn-transparent ms-2" data-bs-toggle="modal" data-bs-target="#addStayModal">
         <i class="bi bi-plus-circle"></i> <i class="bi bi-person-plus"></i>
     </button>
 </h3>
 
-
 <div class="row d-flex justify-content-center">
-    <?php 
-    $stay_data = $stay_result->fetch_all(MYSQLI_ASSOC); 
-    foreach ($stay_data as $stay): 
-    ?>
-    <div class="col-md-4">
-        <div class="card mb-2">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i class="bi bi-person-fill"></i> <?php echo "ชื่อ: " . $stay['mem_fname'] . " " . $stay['mem_lname']; ?>
-                </h5>
-                <p class="card-text">
-                    <i class="bi bi-calendar-event"></i> <strong>วันที่เข้า:</strong> <?php echo $stay['stay_start_date']; ?><br>
-                    <i class="bi bi-calendar-x"></i> <strong>วันที่ออก:</strong> <?php echo $stay['stay_end_date']; ?><br>
-                    <i class="bi bi-telephone"></i> <strong>เบอร์โทร:</strong> <?php echo $stay['mem_phone']; ?><br>
-                    <i class="bi bi-house-door"></i> <strong>ที่อยู่:</strong> <?php echo $stay['mem_address']; ?><br>
-                    <small class="form-text text-muted"><i class="bi bi-lightning-charge"></i> ค่าหน่วยไฟฟ้า: <?php echo $rate['electricity_rate']; ?> บาท/หน่วย</small><br>
-                    <small class="form-text text-muted"><i class="bi bi-droplet"></i> ค่าหน่วยน้ำ: <?php echo $rate['water_rate']; ?> บาท/หน่วย</small>
-                </p>
-                <div class="btn-group">
-                    <button class="btn btn-warning me-2" data-bs-toggle="modal" data-bs-target="#editStayModal<?php echo $stay['stay_id']; ?>"><i class="bi bi-pencil"></i> แก้ไข</button>
-                    <button class="btn btn-info ms-2" data-bs-toggle="modal" data-bs-target="#rentModal<?php echo $stay['stay_id']; ?>"><i class="bi bi-cash"></i> คิดค่าเช่า</button>
+<?php 
+// รับค่า room_id จาก URL
+$room_id = $_GET['room_id'];
+
+// ดึงข้อมูลการเข้าพักล่าสุดของห้องนั้น
+$stay_query = "
+    SELECT s.stay_id, s.room_id, s.stay_start_date, s.stay_end_date, 
+           m.mem_fname, m.mem_lname, m.mem_phone, m.mem_address,
+           r.room_number
+    FROM stay s
+    JOIN `member` m ON s.mem_id = m.mem_id
+    JOIN room r ON s.room_id = r.room_id
+    WHERE s.room_id = ?
+    ORDER BY s.stay_start_date DESC
+    LIMIT 1
+";
+
+$stmt = $conn->prepare($stay_query);
+$stmt->bind_param("i", $room_id);
+$stmt->execute();
+$stay_result = $stmt->get_result();
+
+if ($stay_result->num_rows > 0):
+    $stay = $stay_result->fetch_assoc();
+?>
+        <div class="col-md-4">
+            <div class="card mb-2">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-person-fill"></i> <?php echo "ชื่อ: " . $stay['mem_fname'] . " " . $stay['mem_lname']; ?>
+                    </h5>
+                    <p class="card-text">
+                        <i class="bi bi-house-door"></i> <strong>ห้อง:</strong> <?php echo $stay['room_number']; ?><br>
+                        <i class="bi bi-calendar-event"></i> <strong>วันที่เข้า:</strong> <?php echo $stay['stay_start_date']; ?><br>
+                        <i class="bi bi-telephone"></i> <strong>เบอร์โทร:</strong> <?php echo $stay['mem_phone']; ?><br>
+                        <i class="bi bi-house-door"></i> <strong>ที่อยู่:</strong> <?php echo $stay['mem_address']; ?><br>
+                    </p>
+                    <div class="btn-group">
+                        <button class="btn btn-warning me-2" data-bs-toggle="modal" data-bs-target="#editStayModal<?php echo $stay['stay_id']; ?>">
+                            <i class="bi bi-pencil"></i> แก้ไข
+                        </button>
+                        <button class="btn btn-info ms-2" data-bs-toggle="modal" data-bs-target="#rentModal<?php echo $stay['stay_id']; ?>">
+                            <i class="bi bi-cash"></i> คิดค่าเช่า
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-    <?php endforeach; ?>
+<?php endif; ?>
 </div>
 
 
@@ -649,11 +659,6 @@ function submitInvoice() {
                         <input type="date" name="stay_start_date" class="form-control" value="<?php echo $stay['stay_start_date']; ?>" required>
                     </div>
                     
-                    <!-- วันที่ออก -->
-                    <div class="mb-3">
-                        <label for="stay_end_date" class="form-label"><i class="bi bi-calendar-x"></i> วันที่ออก</label>
-                        <input type="date" name="stay_end_date" class="form-control" value="<?php echo $stay['stay_end_date']; ?>">
-                    </div>
                     
                     <input type="hidden" name="stay_id" value="<?php echo $stay['stay_id']; ?>">
                     <button type="submit" name="update_stay" class="btn btn-primary w-100">
@@ -665,49 +670,7 @@ function submitInvoice() {
     </div>
 </div>
 
-
-<script>
-    document.getElementById('editStayForm<?php echo $stay['stay_id']; ?>').addEventListener('submit', function(event) {
-        event.preventDefault(); // ป้องกันการส่งข้อมูลแบบปกติ
-        var form = this;
-        var formData = new FormData(form);
-
-        var xhr = new XMLHttpRequest();
-        xhr.open("POST", form.action, true);
-        
-        xhr.onload = function() {
-            if (xhr.status === 200) {
-                // สร้างการตอบสนองหลังจากที่ข้อมูลอัพเดตเสร็จ
-                Swal.fire({
-                    title: 'ข้อมูลการเข้าพักถูกอัพเดตแล้ว',
-                    icon: 'success',
-                    confirmButtonText: 'ตกลง'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        window.location.reload(); // รีเฟรชหน้าเพื่อแสดงผลการอัพเดต
-                    }
-                });
-            } else {
-                Swal.fire({
-                    title: 'เกิดข้อผิดพลาด',
-                    text: 'ไม่สามารถอัพเดตข้อมูลได้',
-                    icon: 'error',
-                    confirmButtonText: 'ตกลง'
-                });
-            }
-        };
-
-        xhr.send(formData); // ส่งข้อมูลฟอร์มผ่าน AJAX
-    });
-</script>
-
-
-        </tbody>
-        
-    </table>
-    
-
-    <!-- Modal สำหรับการเพิ่มข้อมูลการเข้าพัก -->
+<!-- Modal สำหรับการเพิ่มข้อมูลการเข้าพัก -->
 <div class="modal fade" id="addStayModal" tabindex="-1" aria-labelledby="addStayModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -738,12 +701,6 @@ function submitInvoice() {
                     <div class="mb-3">
                         <label for="stay_start_date" class="form-label"><i class="bi bi-calendar-event"></i> วันที่เข้า</label>
                         <input type="date" name="stay_start_date" class="form-control" required>
-                    </div>
-                    
-                    <!-- วันที่ออก -->
-                    <div class="mb-3">
-                        <label for="stay_end_date" class="form-label"><i class="bi bi-calendar-x"></i> วันที่ออก</label>
-                        <input type="date" name="stay_end_date" class="form-control">
                     </div>
                     
                     <input type="hidden" name="room_id" value="<?php echo $room_id; ?>">
