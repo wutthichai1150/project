@@ -359,7 +359,7 @@ function deleteRoom(roomId) {
  <!-- ข้อมูลการเข้าพัก -->
 <hr>
 <h3 class="d-flex justify-content-center align-items-center">
-    ข้อมูลการเข้าพักล่าสุด
+    ข้อมูลการเข้าพัก
     <button class="btn btn-transparent ms-2" data-bs-toggle="modal" data-bs-target="#addStayModal">
         <i class="bi bi-plus-circle"></i> <i class="bi bi-person-plus"></i>
     </button>

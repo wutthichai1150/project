@@ -55,7 +55,7 @@ if ($room_id) {
                         <th>ค่าห้อง</th>
                         <th>ค่าน้ำ</th>
                         <th>ค่าไฟ</th>
-                        <th>ประเภทใบเสร็จ</th>
+                        <th>ประเภทห้อง</th>
                         <th>จำนวนเงินทั้งหมด</th>
                         <th>สถานะการชำระเงิน</th>
                         <th class="manage-column">การจัดการ</th>
@@ -85,11 +85,6 @@ if ($room_id) {
                                     <button type="button" class="btn btn-danger btn-sm" onclick="deleteInvoice(<?php echo $invoice['rec_id']; ?>)">
                                         <i class="bi bi-trash"></i> ลบ
                                     </button>
-                                    
-                                    <!-- ปุ่มพิมพ์ใบเสร็จ -->
-                                    <a href="../generate_receipt_pdf.php?rec_id=<?php echo $invoice['rec_id']; ?>" class="btn btn-primary btn-sm">
-                                        <i class="bi bi-printer"></i> พิมพ์ใบเสร็จ
-                                    </a>
                                     <!-- ปุ่มดูการชำระเงิน -->
                                     <a href="payment_list.php?rec_id=<?php echo $invoice['rec_id']; ?>" class="btn btn-info btn-sm">
                                         <i class="bi bi-file-earmark-check"></i> ดูการชำระเงิน
@@ -103,7 +98,7 @@ if ($room_id) {
                             <div class="modal-dialog">
                                 <div class="modal-content">
                                     <div class="modal-header">
-                                        <h5 class="modal-title" id="editModalLabel<?php echo $invoice['rec_id']; ?>">แก้ไขใบเสร็จ</h5>
+                                        <h5 class="modal-title" id="editModalLabel<?php echo $invoice['rec_id']; ?>">แก้ไขใบแจ้งหนี้</h5>
                                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                     </div>
                                     <div class="modal-body">
