@@ -1,19 +1,19 @@
 <?php
 session_start();
-
-// ตรวจสอบว่า mem_user มีอยู่ใน session หรือไม่
-if (!isset($_SESSION['mem_user'])) {
-    // ถ้าไม่มี mem_user แสดงว่าไม่ใช่ผู้ใช้ที่ล็อกอิน
-    header('Location: login.php'); // เปลี่ยนเส้นทางไปหน้าเข้าสู่ระบบ
-    exit();
-}
-
 include('../includes/db.php');
 include('../includes/navbar_user.php');
 
-// ดึงข้อมูลผู้ใช้จากฐานข้อมูล
-$mem_user = $_SESSION['mem_user'];  // แก้ไขตรงนี้ให้ใช้ $mem_user
-$sql = "SELECT * FROM `member` WHERE mem_user = '$mem_user'";  // ใช้ $mem_user ใน SQL query
+
+// ตรวจสอบว่าผู้ใช้เข้าสู่ระบบหรือยัง
+if (!isset($_SESSION['mem_user'])) {
+    header('Location: login.php');
+    exit();
+}
+
+$mem_user = $_SESSION['mem_user'];
+
+// ดึงข้อมูลสมาชิกจากฐานข้อมูล
+$sql = "SELECT * FROM `member` WHERE mem_user = '$mem_user'";
 $result = mysqli_query($conn, $sql);
 
 if ($result && mysqli_num_rows($result) > 0) {
@@ -22,9 +22,35 @@ if ($result && mysqli_num_rows($result) > 0) {
     $mem_lname = $row['mem_lname'];
     $mem_email = $row['mem_mail'];
     $mem_phone = $row['mem_phone'];
+    $mem_password = $row['mem_password'];
 } else {
-    // หากไม่พบข้อมูล
     echo "ไม่พบข้อมูลสมาชิก";
+    exit();
+}
+
+// จัดการเปลี่ยนรหัสผ่าน
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['current_password'])) {
+    $current_password = mysqli_real_escape_string($conn, $_POST['current_password']);
+    $new_password = mysqli_real_escape_string($conn, $_POST['new_password']);
+    $confirm_password = mysqli_real_escape_string($conn, $_POST['confirm_password']);
+
+    // ตรวจสอบว่ารหัสผ่านปัจจุบันตรงกับที่เก็บไว้หรือไม่
+    if ($current_password === $mem_password) {
+        if ($new_password === $confirm_password) {
+            // อัปเดตรหัสผ่านใหม่
+            $update_sql = "UPDATE `member` SET mem_password = '$new_password' WHERE mem_user = '$mem_user'";
+            if (mysqli_query($conn, $update_sql)) {
+                echo "success";
+            } else {
+                echo "error";
+            }
+        } else {
+            echo "mismatch";
+        }
+    } else {
+        echo "incorrect";
+    }
+    exit();
 }
 ?>
 
@@ -83,9 +109,9 @@ if ($result && mysqli_num_rows($result) > 0) {
 
 </head>
 <body>
-    <div class="container mt-5">
+<div class="container mt-5">
         <div class="row justify-content-center">
-            <div class="col-lg-8 col-md-10">
+            <div class="col-lg-8 col-md-10 col-sm-12">
                 <div class="card shadow-lg">
                     <div class="card-header text-center">
                         <h4><i class="fas fa-user-circle me-2"></i> โปรไฟล์ของฉัน</h4>
@@ -106,19 +132,23 @@ if ($result && mysqli_num_rows($result) > 0) {
                             <label class="form-label"><i class="fas fa-phone me-2"></i> เบอร์โทรศัพท์</label>
                             <p class="form-control-plaintext"><?php echo $mem_phone; ?></p>
                         </div>
-                        
+
                         <!-- แก้ไขโปรไฟล์ -->
-                        <div class="text-center">
-                            <!-- ปุ่มเปิด Modal -->
-                            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#editModal">
+                        <div class="d-flex justify-content-center">
+                            <button type="button" class="btn btn-warning mx-2" data-bs-toggle="modal" data-bs-target="#editModal">
                                 <i class="fas fa-edit me-2"></i> แก้ไขโปรไฟล์
                             </button>
+                            <button type="button" class="btn btn-danger mx-2" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                                <i class="fas fa-key me-2"></i> เปลี่ยนรหัสผ่าน
+                            </button>
                         </div>
+
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
 
     <!-- Modal แก้ไขโปรไฟล์ -->
     <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
@@ -161,6 +191,48 @@ if ($result && mysqli_num_rows($result) > 0) {
             </div>
         </div>
     </div>
+
+<!-- Modal เปลี่ยนรหัสผ่าน -->
+<div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">เปลี่ยนรหัสผ่าน</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="changePasswordForm">
+                    <div class="mb-3">
+                        <label>รหัสผ่านปัจจุบัน</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" name="current_password" id="current_password" required>
+                            <button type="button" class="btn btn-outline-secondary" id="toggleCurrentPassword"><i class="fas fa-eye"></i></button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label>รหัสผ่านใหม่</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" name="new_password" id="new_password" required>
+                            <button type="button" class="btn btn-outline-secondary" id="toggleNewPassword"><i class="fas fa-eye"></i></button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label>ยืนยันรหัสผ่านใหม่</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control" name="confirm_password" id="confirm_password" required>
+                            <button type="button" class="btn btn-outline-secondary" id="toggleConfirmPassword"><i class="fas fa-eye"></i></button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
+                <button type="submit" class="btn btn-success" id="savePasswordBtn">บันทึก</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -223,6 +295,59 @@ if ($result && mysqli_num_rows($result) > 0) {
                 }
             });
         });
+        $('#savePasswordBtn').click(function() {
+            var currentPassword = $("input[name='current_password']").val();
+            var newPassword = $("input[name='new_password']").val();
+            var confirmPassword = $("input[name='confirm_password']").val();
+
+            $.ajax({
+                url: 'profile.php',
+                method: 'POST',
+                data: {
+                    current_password: currentPassword,
+                    new_password: newPassword,
+                    confirm_password: confirmPassword
+                },
+                success: function(response) {
+                    if (response === 'success') {
+                        Swal.fire('สำเร็จ!', 'รหัสผ่านถูกเปลี่ยนเรียบร้อย', 'success').then(() => {
+                            location.reload();
+                        });
+                    } else if (response === 'incorrect') {
+                        Swal.fire('ผิดพลาด!', 'รหัสผ่านปัจจุบันไม่ถูกต้อง', 'error');
+                    } else if (response === 'mismatch') {
+                        Swal.fire('ผิดพลาด!', 'รหัสผ่านใหม่ไม่ตรงกัน', 'error');
+                    } else {
+                        Swal.fire('ผิดพลาด!', 'เกิดข้อผิดพลาด กรุณาลองใหม่', 'error');
+                    }
+                }
+            });
+        });
+        function togglePasswordVisibility(passwordFieldId, toggleButtonId) {
+        const passwordField = document.getElementById(passwordFieldId);
+        const toggleButton = document.getElementById(toggleButtonId);
+
+        if (passwordField.type === "password") {
+            passwordField.type = "text";
+            toggleButton.innerHTML = '<i class="fas fa-eye-slash"></i>'; // เปลี่ยนเป็นไอคอน "ซ่อน"
+        } else {
+            passwordField.type = "password";
+            toggleButton.innerHTML = '<i class="fas fa-eye"></i>'; // เปลี่ยนเป็นไอคอน "แสดง"
+        }
+    }
+
+    // เชื่อมต่อกับปุ่มที่เกี่ยวข้อง
+    document.getElementById("toggleCurrentPassword").addEventListener("click", function() {
+        togglePasswordVisibility("current_password", "toggleCurrentPassword");
+    });
+
+    document.getElementById("toggleNewPassword").addEventListener("click", function() {
+        togglePasswordVisibility("new_password", "toggleNewPassword");
+    });
+
+    document.getElementById("toggleConfirmPassword").addEventListener("click", function() {
+        togglePasswordVisibility("confirm_password", "toggleConfirmPassword");
+    });
     </script>
 </body>
 </html>

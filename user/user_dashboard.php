@@ -1,9 +1,7 @@
 <?php
-session_start(); // เริ่มต้นการใช้งานเซสชัน
+session_start();
 
-// ตรวจสอบว่าเซสชันมีข้อมูลผู้ใช้ (mem_user) หรือไม่
 if (!isset($_SESSION['mem_user'])) {
-    // ถ้าไม่มีข้อมูล mem_user ให้เปลี่ยนเส้นทางไปหน้า login
     header('Location: login.php');
     exit();
 }

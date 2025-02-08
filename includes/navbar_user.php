@@ -6,6 +6,7 @@ if (!isset($_SESSION['mem_user'])) {
   exit();
 }
 
+
 $user = $_SESSION['mem_user']; // ดึงข้อมูลจากเซสชัน
 
 // ตรวจสอบการเชื่อมต่อฐานข้อมูล
@@ -108,11 +109,6 @@ if ($result->num_rows > 0) {
         </li>
         
  
-          <li class="nav-item">
-            <a class="nav-link text-white" href="repair_form.php?room_id=<?php echo $room['room_id']; ?>">
-              <i class="fas fa-tools me-2"></i> แจ้งซ่อมครุภัณฑ์
-            </a>
-          </li>
 
         </li>
         <!-- ติดต่อ -->
@@ -136,7 +132,6 @@ if ($result->num_rows > 0) {
   </a>
   <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
     <li><a class="dropdown-item text-dark" href="profile.php">โปรไฟล์ของฉัน</a></li>
-    <li><a class="dropdown-item text-dark" href="change_password.php">เปลี่ยนรหัสผ่าน</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><a class="dropdown-item text-danger" href="../logout.php"><i class="fas fa-sign-out-alt me-2"></i> ออกจากระบบ</a></li>
   </ul>

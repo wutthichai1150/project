@@ -1,11 +1,10 @@
 <?php
 session_start();
 
-if (!isset($_SESSION['mem_fname'])) {
+if (!isset($_SESSION['mem_user'])) {
     header('Location: login.php');
     exit();
 }
-
 include('../includes/db.php');
 include('../includes/navbar_user.php');
 ?>
