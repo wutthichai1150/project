@@ -1,65 +1,113 @@
-/* manage_payment.css */
-
 /* พื้นหลังและฟอนต์ */
 body {
-    background-color: #f8f9fa;
-    font-family: 'Arial', sans-serif;
+    background-color: #f4f6f9;  /* สีพื้นหลังอ่อน */
+    font-family: 'Poppins', sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+/* สีเมนูข้าง (Sidebar) เมื่อ hover */
+.sidebar a:hover {
+    background-color: #007bff;  /* สีฟ้า */
+    color: white;
+}
+
+/* สไตล์ของส่วนเนื้อหา */
+.content {
+    margin-left: 270px;
+    padding: 20px;
 }
 
 /* หัวข้อ */
 h2 {
+    font-size: 36px;
+    color: #000000;  /* สีฟ้า */
+    font-weight: bold;
     text-align: center;
-    color: #343a40;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
 }
 
-/* ตาราง */
-table {
+/* การจัดการตาราง */
+.table {
+    width: 100%;
+    border-collapse: collapse;
     margin-top: 30px;
 }
 
 .table th, .table td {
-    vertical-align: middle;
+    padding: 15px;
+    font-size: 16px;
     text-align: center;
+    border-bottom: 1px solid #ddd;
+    color: #495057;
 }
 
-.table thead {
-    background-color: #007bff;
-    color: white;
+.table th {
+    background-color: #6a7179;  /* สีฟ้า */
+    color: #ffffff;
+    font-weight: bold;
 }
 
-.table-hover tbody tr:hover {
+.table tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+.table tr:nth-child(odd) {
+    background-color: #ffffff;
+}
+
+.table td:hover {
     background-color: #f1f1f1;
+    transition: background-color 0.3s;
 }
 
-/* ปุ่มการจัดการ */
-.btn-warning, .btn-danger {
-    margin: 0 5px;
+/* ปุ่ม */
+.btn {
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 5px;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s ease;
 }
 
-/* กล่องคอนเทนเนอร์ */
-.container {
-    max-width: 1200px;
-    margin: auto;
+.btn:hover {
+    transform: translateY(-2px);
 }
 
-/* ลิงค์ */
-a {
-    color: #007bff;
-    text-decoration: none;
+.btn-info {
+    background-color: #28a745;  /* สีเขียว */
+    color: #fff;
 }
 
-a:hover {
-    text-decoration: underline;
+.btn-info:hover {
+    background-color: #218838;
 }
 
+.btn-warning {
+    background-color: #ffc107;  /* สีเหลือง */
+    color: #fff;
+}
+
+.btn-warning:hover {
+    background-color: #e0a800;
+}
+
+.btn-danger {
+    background-color: #dc3545;  /* สีแดง */
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+/* ปรับการแสดงผลของฟอร์ม */
 .form-inline {
     display: flex;
-    justify-content: flex-start;
-    align-items: center;
     gap: 15px;
-    background-color: #f8f9fa;
-    padding: 15px;
+    background-color: #ffffff;
+    padding: 20px;
     border-radius: 8px;
     box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
 }
@@ -85,10 +133,54 @@ a:hover {
 }
 
 .form-inline .form-control:focus {
-    border-color: #007bff;
+    border-color: #007bff;  /* สีฟ้าเมื่อฟอร์มได้รับโฟกัส */
     box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
 }
 
-.mb-4 {
+/* ปรับสีให้สวยงามในส่วนล่าง */
+footer {
+    text-align: center;
+    padding: 15px;
+    background-color: #343a40;  /* สีเข้มสำหรับ footer */
+    color: #ffffff;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    border-top: 1px solid #ddd;
+}
+
+/* ปรับให้กล่องข้อมูลดูโดดเด่น */
+.card {
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.card-header {
+    font-size: 20px;
+    font-weight: bold;
+    color: #3a4147;  /* สีฟ้า */
+}
+
+/* ปรับความสวยงามของการแสดงข้อความเตือน */
+.alert {
+    padding: 15px;
     margin-bottom: 20px;
+    border-radius: 5px;
+    font-size: 16px;
+    color: #ffffff;
+}
+
+.alert-success {
+    background-color: #28a745;  /* สีเขียว */
+}
+
+.alert-danger {
+    background-color: #dc3545;  /* สีแดง */
+}
+
+.alert-warning {
+    background-color: #ffc107;  /* สีเหลือง */
 }

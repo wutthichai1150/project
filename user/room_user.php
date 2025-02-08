@@ -43,9 +43,20 @@ if ($result->num_rows > 0) {
         <div class="card-body">
             <?php
             $username = $_SESSION['mem_user'];
-            // คำสั่ง SQL ที่ปรับให้ดึงข้อมูลจากตาราง stay
-            $query = "SELECT * FROM room WHERE room_id IN (SELECT room_id FROM stay WHERE mem_id = (SELECT mem_id FROM `member` WHERE mem_user = ?))";
-            
+            $query = "
+    SELECT * FROM room 
+    WHERE room_id IN (
+        SELECT room_id 
+        FROM stay 
+        WHERE mem_id = (SELECT mem_id FROM `member` WHERE mem_user = ?) 
+        AND stay_end_date IS NULL  -- กรองห้องที่ยังไม่มีวันที่สิ้นสุดการเข้าพัก
+    )
+";
+
+        
+        
+        
+                    
             // ตรวจสอบคำสั่ง SQL และเตรียม statement
             $stmt = $conn->prepare($query);
             if ($stmt === false) {
@@ -89,38 +100,64 @@ if ($result->num_rows > 0) {
 
             if ($invoice_result->num_rows > 0):
                 while ($invoice = $invoice_result->fetch_assoc()):
+                    $mem_fname = '';  // เริ่มต้นตัวแปรชื่อ
+$mem_lname = '';  // 
+
+$username = $_SESSION['mem_user'];
+$user_query = "SELECT mem_fname, mem_lname FROM `member` WHERE mem_user = ?";
+$stmt = $conn->prepare($user_query);
+$stmt->bind_param("s", $username);
+$stmt->execute();
+$user_result = $stmt->get_result();
+
+// ตรวจสอบว่าเจอผู้ใช้หรือไม่
+if ($user_result->num_rows > 0) {
+    $user_data = $user_result->fetch_assoc();
+    $mem_fname = $user_data['mem_fname'];
+    $mem_lname = $user_data['mem_lname'];
+}
             ?>
-            <div class="card mt-4">
-                    <div class="card-header">
-                        <i class="fas fa-info-circle"></i> รายละเอียดค่าเช่า (เดือนล่าสุด)
-                    </div>
-                    <div class="card-body">
-                        <strong><i class="fas fa-user"></i> ชื่อ:</strong> <?php echo $invoice['rec_name']; ?><br>
-                        <strong><i class="fas fa-bed"></i> ประเภท:</strong> <?php echo $invoice['rec_room_type']; ?><br>
-                        <strong><i class="fas fa-coins"></i> ค่าเช่าห้อง:</strong> <?php echo $invoice['rec_room_charge']; ?> บาท<br>
-                        <strong><i class="fas fa-bolt"></i> ค่าไฟ:</strong> <?php echo $invoice['rec_electricity']; ?> บาท
-                        <span style="font-size: 0.8em; color: #888;">(เรท: <?php echo $rate['electricity_rate']; ?> บาท/หน่วย)</span><br>
-                        <strong><i class="fas fa-tint"></i> ค่าน้ำ:</strong> <?php echo $invoice['rec_water']; ?> บาท
-                        <span style="font-size: 0.8em; color: #888;">(เรท: <?php echo $rate['water_rate']; ?> บาท/หน่วย)</span><br>
+           <div class="card mt-4">
+    <div class="card-header">
+        <i class="fas fa-info-circle"></i> รายละเอียดค่าเช่า (เดือนล่าสุด)
+    </div>
+    <div class="card-body">
+        <?php 
+        // ตรวจสอบว่า rec_name และ mem_fname, mem_lname ตรงกันหรือไม่
+        if ($invoice['rec_name'] === $_SESSION['mem_fname'] . ' ' . $_SESSION['mem_lname']) {
+        ?>
+            <strong><i class="fas fa-user"></i> ชื่อ:</strong> <?php echo $invoice['rec_name']; ?><br>
+            <strong><i class="fas fa-bed"></i> ประเภท:</strong> <?php echo $invoice['rec_room_type']; ?><br>
+            <strong><i class="fas fa-coins"></i> ค่าเช่าห้อง:</strong> <?php echo $invoice['rec_room_charge']; ?> บาท<br>
+            <strong><i class="fas fa-bolt"></i> ค่าไฟ:</strong> <?php echo $invoice['rec_electricity']; ?> บาท
+            <span style="font-size: 0.8em; color: #888;">(เรท: <?php echo $rate['electricity_rate']; ?> บาท/หน่วย)</span><br>
+            <strong><i class="fas fa-tint"></i> ค่าน้ำ:</strong> <?php echo $invoice['rec_water']; ?> บาท
+            <span style="font-size: 0.8em; color: #888;">(เรท: <?php echo $rate['water_rate']; ?> บาท/หน่วย)</span><br>
 
-                        <strong><i class="fas fa-calendar-day"></i> วันที่:</strong> <?php echo $invoice['rec_date']; ?><br>
-                        <strong><i class="fas fa-check-circle"></i> ยอดรวม:</strong> <?php echo $invoice['rec_total']; ?> บาท<br>
-                        <strong><i class="fas fa-sync-alt"></i> สถานะ:</strong> <?php echo $invoice['rec_status']; ?><br>
-                        <!-- ปุ่มดูรายละเอียด -->
-                        <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#detailsModal<?php echo $invoice['rec_id']; ?>">
-                            <i class="fas fa-info-circle"></i> ดูรายละเอียด
-                        </button>
+            <strong><i class="fas fa-calendar-day"></i> วันที่:</strong> <?php echo $invoice['rec_date']; ?><br>
+            <strong><i class="fas fa-check-circle"></i> ยอดรวม:</strong> <?php echo $invoice['rec_total']; ?> บาท<br>
+            <strong><i class="fas fa-sync-alt"></i> สถานะ:</strong> <?php echo $invoice['rec_status']; ?><br>
+            <!-- ปุ่มดูรายละเอียด -->
+            <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#detailsModal<?php echo $invoice['rec_id']; ?>">
+                <i class="fas fa-info-circle"></i> ดูรายละเอียด
+            </button>
 
-                        <!-- ปุ่มดูประวัติ -->
-                        <a href="payment_history.php?room_number=<?php echo $room['room_number']; ?>" class="btn btn-warning btn-sm">
-                            <i class="fas fa-history"></i> ประวัติการชำระเงิน
-                        </a>
-                        <!-- ปุ่มชำระเงิน -->
-                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#paymentModal<?php echo $invoice['rec_id']; ?>">
-                            <i class="fas fa-credit-card"></i> ชำระเงิน
-                        </button>
-                    </div>
-                </div>
+            <!-- ปุ่มดูประวัติ -->
+            <a href="payment_history.php?room_number=<?php echo $room['room_number']; ?>" class="btn btn-warning btn-sm">
+                <i class="fas fa-history"></i> ประวัติการชำระเงิน
+            </a>
+            <!-- ปุ่มชำระเงิน -->
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#paymentModal<?php echo $invoice['rec_id']; ?>">
+                <i class="fas fa-credit-card"></i> ชำระเงิน
+            </button>
+        <?php 
+        } else {
+            // ถ้าไม่ตรงกัน
+            echo "<p>ไม่มีค่าเช่าสำหรับเดือนนี้</p>";
+        }
+        ?>
+    </div>
+</div>
 
 
             <!-- Modal: ดูรายละเอียด -->
@@ -128,7 +165,7 @@ if ($result->num_rows > 0) {
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="detailsModalLabel<?php echo $invoice['rec_id']; ?>">รายละเอียดใบแจ้งหนี้</h5>
+                            <h5 class="modal-title" id="detailsModalLabel<?php echo $invoice['rec_id']; ?>">รายละเอียดใบเสร็จ</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">

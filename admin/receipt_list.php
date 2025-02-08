@@ -85,6 +85,8 @@ if ($room_id) {
                                     <button type="button" class="btn btn-danger btn-sm" onclick="deleteInvoice(<?php echo $invoice['rec_id']; ?>)">
                                         <i class="bi bi-trash"></i> ลบ
                                     </button>
+                                    
+
                                     <!-- ปุ่มดูการชำระเงิน -->
                                     <a href="payment_list.php?rec_id=<?php echo $invoice['rec_id']; ?>" class="btn btn-info btn-sm">
                                         <i class="bi bi-file-earmark-check"></i> ดูการชำระเงิน

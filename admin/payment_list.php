@@ -86,6 +86,10 @@ if ($rec_id) {
                                      class="img-fluid rounded border shadow-sm" 
                                      style="max-width: 300px;">
                             </div>
+
+
+
+
                         <?php }
                     } else {
                         echo '<div class="alert alert-warning">⚠️ ไม่มีการชำระเงินสำหรับใบเสร็จนี้</div>';
@@ -97,5 +101,13 @@ if ($rec_id) {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+// ฟังก์ชันพิมพ์ใบเสร็จ
+function printReceipt() {
+    window.print();
+}
+</script>
+
 </body>
 </html>

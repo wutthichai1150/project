@@ -1,4 +1,4 @@
-<?php
+<?php 
 session_start();
 include('../includes/db.php');
 include('../includes/navbar_user.php');
@@ -19,6 +19,18 @@ $mem_user = $_SESSION['mem_user'];
 // รับค่า room_id จาก URL
 $room_id = isset($_GET['room_id']) ? $_GET['room_id'] : null;
 
+// คำสั่ง SQL สำหรับการดึงชื่อและนามสกุลของผู้ใช้งาน
+$check_user_sql = "SELECT mem_fname, mem_lname FROM `member` WHERE mem_user = '$mem_user'";
+$check_user_result = mysqli_query($conn, $check_user_sql);
+
+if (!$check_user_result) {
+    die("Query failed: " . mysqli_error($conn));
+}
+
+$user_data = mysqli_fetch_assoc($check_user_result);
+$mem_fname = $user_data['mem_fname'];
+$mem_lname = $user_data['mem_lname'];
+
 if ($room_id) {
     // ตรวจสอบว่า mem_user เป็นเจ้าของห้องหรือไม่
     $check_owner_sql = "SELECT s.room_id 
@@ -37,17 +49,21 @@ if ($room_id) {
         exit();
     }
 
-    // คำสั่ง SQL สำหรับการดึงข้อมูลประวัติการซ่อม
+    // คำสั่ง SQL สำหรับการดึงข้อมูลประวัติการซ่อมที่ชื่อผู้แจ้งตรงกับข้อมูลใน mem_fname และ mem_lname
     $sql = "SELECT rr.repair_id, rr.room_id, rr.repair_name, rr.repair_type, rr.repair_eqm_name, rr.repair_detail, rr.repair_date, rr.repair_state, r.room_number, rr.repair_image
-            FROM repair_requests rr
-            JOIN room r ON rr.room_id = r.room_id
-            WHERE rr.room_id = '$room_id'
-            ORDER BY rr.repair_date DESC";
+    FROM repair_requests rr
+    JOIN room r ON rr.room_id = r.room_id
+    JOIN `member` m ON rr.repair_name = CONCAT(m.mem_fname, ' ', m.mem_lname)
+    WHERE m.mem_user = '$mem_user'
+    ORDER BY rr.repair_date DESC";
+
 } else {
     // กรณีไม่มี room_id (แสดงทั้งหมด)
     $sql = "SELECT rr.repair_id, rr.room_id, rr.repair_name, rr.repair_type, rr.repair_eqm_name, rr.repair_detail, rr.repair_date, rr.repair_state, r.room_number, rr.repair_image
             FROM repair_requests rr
             JOIN room r ON rr.room_id = r.room_id
+            JOIN member m ON rr.repair_name = CONCAT(m.mem_fname, ' ', m.mem_lname)
+            WHERE m.mem_fname = '$mem_fname' AND m.mem_lname = '$mem_lname'
             ORDER BY rr.repair_date DESC";
 }
 

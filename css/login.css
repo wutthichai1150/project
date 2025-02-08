@@ -1,8 +1,7 @@
 /* styles.css */
-
 body {
     font-family: 'Arial', sans-serif;
-    background-color: #f4f7fc;
+    background-color: #ffffff; /* เปลี่ยนเป็นสีพื้นหลังที่มีโทน teal */
     color: #333;
 }
 
@@ -19,12 +18,12 @@ h2 {
     text-align: center;
     font-size: 2rem;
     margin-bottom: 20px;
-    color: #007bff;
+    color: #00796b; /* ใช้สี teal */
 }
 
 .form-label {
     font-weight: bold;
-    color: #555;
+    color: #00796b; /* ใช้สี teal */
 }
 
 .form-control {
@@ -32,27 +31,23 @@ h2 {
     box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.btn-custom {
-    background-color: #007bff;
-    color: white;
-    border-radius: 30px;
-    padding: 12px 20px;
-    width: 100%;
-    font-size: 1rem;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.3s;
+/* ปรับสไตล์ปุ่ม Login ให้เป็น Teal */
+.btn-primary {
+    background-color: #008080;  /* สี Teal */
+    border-color: #008080;      /* สี Teal */
 }
 
-.btn-custom:hover {
-    background-color: #0056b3;
+.btn-primary:hover {
+    background-color: #006666;  /* สี Teal เมื่อ hover */
+    border-color: #006666;      /* สี Teal เมื่อ hover */
 }
 
+/* ปรับข้อความแจ้งเตือน */
 .alert {
     margin-bottom: 20px;
     padding: 10px;
-    background-color: #f8d7da;
-    color: #721c24;
+    background-color: #b2dfdb; /* สีพื้นหลังที่เบากว่า Teal */
+    color: #004d40; /* สีที่เข้มขึ้น */
     border-radius: 4px;
 }
 
@@ -62,7 +57,7 @@ p {
 }
 
 p a {
-    color: #007bff;
+    color: #00796b; /* ใช้สี Teal */
     text-decoration: none;
 }
 
@@ -70,3 +65,7 @@ p a:hover {
     text-decoration: underline;
 }
 
+/* เพิ่มการตั้งค่าระยะห่างจากด้านบน */
+.container {
+    margin-top: 60px;
+}

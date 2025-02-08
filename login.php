@@ -22,26 +22,18 @@ if (isset($_POST['login'])) {
 
     // เช็คการล็อคอินของ Admin ก่อน
     $query_admin = $conn->prepare("SELECT * FROM `admin` WHERE ad_user = ?");
-    if (!$query_admin) {
-        die("SQL Error: " . $conn->error); // แสดงข้อผิดพลาด
-    }
-
     $query_admin->bind_param("s", $username);
     $query_admin->execute();
     $result_admin = $query_admin->get_result();
 
     if ($result_admin->num_rows > 0) {
-        // ถ้าเป็นผู้ดูแลระบบ
         $admin = $result_admin->fetch_assoc();
         if ($password === $admin['ad_password']) {
-            // สร้าง session สำหรับผู้ดูแลระบบ
             $_SESSION['ad_id'] = $admin['ad_id'];
             $_SESSION['ad_user'] = $admin['ad_user'];
             $_SESSION['ad_fname'] = $admin['ad_fname'];
             $_SESSION['ad_lname'] = $admin['ad_lname'];
-           
 
-            // แจ้งเตือนการล็อคอินสำเร็จและตั้งค่าลิ้งไปที่หน้าแดชบอร์ดผู้ดูแล
             $showAlert = true;
             $alertMessage = "ล็อคอินสำเร็จ! ยินดีต้อนรับผู้ดูแลระบบ";
             $alertType = "success";
@@ -52,29 +44,22 @@ if (isset($_POST['login'])) {
             $alertType = "error";
         }
     } else {
-        // ถ้าไม่ใช่ผู้ดูแลระบบ ให้ตรวจสอบการล็อคอินของผู้ใช้ทั่วไป
+        // ถ้าไม่ใช่ผู้ดูแลระบบ
         $query_member = $conn->prepare("SELECT * FROM `member` WHERE mem_user = ?");
-        if (!$query_member) {
-            die("SQL Error: " . $conn->error); // แสดงข้อผิดพลาด
-        }
-
         $query_member->bind_param("s", $username);
         $query_member->execute();
         $result_member = $query_member->get_result();
 
         if ($result_member->num_rows > 0) {
-            // ถ้าเป็นผู้ใช้ทั่วไป
             $user = $result_member->fetch_assoc();
             if ($password === $user['mem_password']) {
-                // สร้าง session สำหรับผู้ใช้ทั่วไป
                 $_SESSION['user_id'] = $user['mem_id'];
                 $_SESSION['mem_user'] = $user['mem_user'];
                 $_SESSION['mem_fname'] = $user['mem_fname'];
                 $_SESSION['mem_lname'] = $user['mem_lname'];
                 $_SESSION['mem_mail'] = $user['mem_mail'];
-                $_SESSION['mem_address'] = $user['mem_address']; // เก็บที่อยู่ของผู้ใช้ทั่วไป
+                $_SESSION['mem_address'] = $user['mem_address'];
 
-                // แจ้งเตือนการล็อคอินสำเร็จและตั้งค่าลิ้งไปที่หน้าแดชบอร์ดผู้ใช้
                 $showAlert = true;
                 $alertMessage = "ล็อคอินสำเร็จ! ยินดีต้อนรับผู้ใช้";
                 $alertType = "success";
@@ -94,18 +79,19 @@ if (isset($_POST['login'])) {
 ?>
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-</head>
-<body style="background-color: #f8f9fa;">
+    <link rel="stylesheet" href="css/login.css">
 
-    <div class="container d-flex justify-content-center align-items-center vh-100">
+    
+</head>
+<body> 
+    <div class="container d-flex justify-content-center align-items-start">
         <div class="card shadow-lg" style="max-width: 400px; width: 100%;">
             <div class="card-body p-4">
                 <h2 class="text-center mb-4">เข้าสู่ระบบ</h2>
@@ -131,7 +117,7 @@ if (isset($_POST['login'])) {
                         <label for="mem_password" class="form-label">Password</label>
                         <input type="password" name="mem_password" class="form-control" required>
                     </div>
-                    <button type="submit" name="login" class="btn" style="background-color: #00796b; color: white; width: 100%; padding: 10px; font-size: 16px;">
+                    <button type="submit" name="login" class="btn btn-primary w-100 py-2">
                         Login
                     </button>
                 </form>
@@ -139,6 +125,5 @@ if (isset($_POST['login'])) {
             </div>
         </div>
     </div>
-
 </body>
 </html>

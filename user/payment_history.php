@@ -12,11 +12,22 @@ if (!$room_number) {
     exit;
 }
 
-// คำสั่ง SQL เพื่อดึงข้อมูลการชำระเงิน
+// ตรวจสอบว่าได้เข้าสู่ระบบและมีชื่อผู้ใช้ใน session หรือไม่
+if (!isset($_SESSION['mem_fname']) || !isset($_SESSION['mem_lname'])) {
+    echo 'กรุณาเข้าสู่ระบบ';
+    exit;
+}
+
+$mem_fname = $_SESSION['mem_fname'];  // ชื่อจาก session
+$mem_lname = $_SESSION['mem_lname'];  // นามสกุลจาก session
+
+// คำสั่ง SQL เพื่อดึงข้อมูลการชำระเงินของผู้ใช้คนนี้
 $sql = "SELECT p.pay_id, p.pay_name, p.pay_date, p.pay_room_charge, p.pay_electricity, p.pay_water, p.pay_total, p.image, r.room_number, r.room_type
         FROM payments p
         JOIN room r ON p.room_id = r.room_id
         WHERE r.room_number = '$room_number' 
+        AND p.pay_name LIKE '$mem_fname%' 
+        AND p.pay_name LIKE '%$mem_lname'  
         ORDER BY p.pay_date DESC";
 
 $result = mysqli_query($conn, $sql);
@@ -76,7 +87,7 @@ if (!$result) {
             </table>
         </div>
     <?php else: ?>
-        <p class="text-center">ไม่มีข้อมูลการชำระเงินสำหรับห้องหมายเลขนี้.</p>
+        <p class="text-center">ไม่มีข้อมูลการชำระเงินสำหรับห้องหมายเลขนี้ หรือคุณไม่ได้ชำระเงินในห้องนี้.</p>
     <?php endif; ?>
 </div>
 
