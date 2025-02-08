@@ -1,10 +1,11 @@
 <?php
 session_start();
 
-if (!isset($_SESSION['mem_user'])) {
+if (!isset($_SESSION['mem_fname'])) {
     header('Location: login.php');
     exit();
 }
+
 include('../includes/db.php');
 include('../includes/navbar_user.php');
 ?>
@@ -44,24 +45,9 @@ include('../includes/navbar_user.php');
             </iframe>
         </div>
 
-        <!-- ฟอร์มติดต่อ -->
+        <!-- รูปภาพด้านขวา -->
         <div class="col-md-6">
-            <h5>ส่งข้อความถึงเรา</h5>
-            <form action="send_message.php" method="post">
-                <div class="mb-3">
-                    <label for="name" class="form-label">ชื่อของคุณ</label>
-                    <input type="text" class="form-control" id="name" name="name" required>
-                </div>
-                <div class="mb-3">
-                    <label for="email" class="form-label">อีเมลของคุณ</label>
-                    <input type="email" class="form-control" id="email" name="email" required>
-                </div>
-                <div class="mb-3">
-                    <label for="message" class="form-label">ข้อความ</label>
-                    <textarea class="form-control" id="message" name="message" rows="5" required></textarea>
-                </div>
-                <button type="submit" class="btn btn-primary"><i class="fas fa-paper-plane me-2"></i> ส่งข้อความ</button>
-            </form>
+            <img src="../assets/image/bg.png" alt="Background" class="img-fluid w-100" style="height: 100%; object-fit: cover;">
         </div>
     </div>
 </div>
