@@ -3,7 +3,6 @@ session_start();
 include('../includes/db.php');
 include('../includes/navbar_user.php');
 
-
 // ตรวจสอบการเชื่อมต่อฐานข้อมูล
 if (!$conn) {
     die("Connection failed: " . mysqli_connect_error());
@@ -46,11 +45,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $image_name = NULL; 
     }
 
-  
     $sql = "INSERT INTO repair_requests (room_id, repair_name, repair_type, repair_eqm_name, repair_detail, repair_image, repair_date, repair_state) 
             VALUES (?, ?, ?, ?, ?, ?, ?, 'กำลังดำเนินการ')";
 
-  
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("issssss", $room_id, $repair_name, $repair_type, $repair_eqm_name, $repair_detail, $image_name, $repair_date);
 
@@ -129,7 +126,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <label for="repair_name" class="form-label">
                 <i class="fas fa-user"></i> ชื่อผู้แจ้ง
             </label>
-            <input type="text" name="repair_name" id="repair_name" class="form-control" required>
+            <!-- ดึงชื่อผู้แจ้งจาก session -->
+            <input type="text" name="repair_name" id="repair_name" class="form-control" value="<?php echo $_SESSION['mem_fname'] . ' ' . $_SESSION['mem_lname']; ?>" required readonly>
         </div>
 
         <div class="mb-3">
