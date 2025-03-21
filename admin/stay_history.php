@@ -1,226 +1,205 @@
 <?php
-include('../includes/navbar_admin.php');
-include('../includes/db.php');
+session_start();
 
-// ตรวจสอบการเริ่ม session
-if (session_status() == PHP_SESSION_NONE) {
-    session_start();
-}
-
-$room_id = $_GET['room_id']; 
-
-// ตรวจสอบว่าได้รับคำสั่งจากฟอร์มหรือไม่
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_stay'])) {
-    $stay_id = $_POST['stay_id'];
-    $stay_start_date = $_POST['stay_start_date'];
-    $stay_end_date = $_POST['stay_end_date'];
-
-    // คำสั่ง SQL สำหรับอัพเดตข้อมูลการเข้าพัก
-    $update_sql = "UPDATE stay SET stay_start_date = ?, stay_end_date = ? WHERE stay_id = ?";
-    $stmt = $conn->prepare($update_sql);
-    $stmt->bind_param("ssi", $stay_start_date, $stay_end_date, $stay_id);
-
-    if ($stmt->execute()) {
-        // ถ้าการอัพเดตสำเร็จ
-        $alert_message = "Swal.fire({
-            title: 'สำเร็จ!',
-            text: 'อัพเดตข้อมูลสำเร็จ',
-            icon: 'success',
-            confirmButtonText: 'ตกลง'
-        });";
-    } else {
-        // ถ้ามีข้อผิดพลาด
-        $alert_message = "Swal.fire({
-            title: 'เกิดข้อผิดพลาด!',
-            text: 'ไม่สามารถอัพเดตข้อมูลได้',
-            icon: 'error',
-            confirmButtonText: 'ตกลง'
-        });";
-    }
-}
-
-// คำสั่ง SQL เพื่อดึงข้อมูลการเข้าพัก
-$sql = "
-    SELECT s.stay_id, s.room_id, s.mem_id, s.stay_start_date, s.stay_end_date, 
-           m.mem_fname, m.mem_lname, r.room_number
-    FROM stay s
-    LEFT JOIN `member` m ON s.mem_id = m.mem_id
-    LEFT JOIN room r ON s.room_id = r.room_id
-    WHERE s.room_id = ?
-";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param("i", $room_id);
-$stmt->execute();
-$result = $stmt->get_result();
-
-if (isset($_POST['action']) && $_POST['action'] == 'delete') {
-    $stay_id = $_POST['stay_id'];
-
-    // คำสั่ง SQL สำหรับลบข้อมูล
-    $delete_sql = "DELETE FROM stay WHERE stay_id = ?";
-    $stmt = $conn->prepare($delete_sql);
-    $stmt->bind_param("i", $stay_id);
-
-    if ($stmt->execute()) {
-        echo "success";  // ส่งข้อมูลกลับว่า successful
-    } else {
-        echo "error";  // ส่งข้อมูลกลับว่ามีข้อผิดพลาด
-    }
+if (!isset($_SESSION['ad_user'])) {
+    header("Location: ../login.php");
     exit();
 }
-$room_sql = "SELECT room_number FROM room WHERE room_id = ?";
-$room_stmt = $conn->prepare($room_sql);
-$room_stmt->bind_param("i", $room_id);
-$room_stmt->execute();
-$room_result = $room_stmt->get_result();
-$room_data = $room_result->fetch_assoc();
-$room_number = $room_data['room_number'];
 
-?>
+include('../includes/db.php');
 
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>รายการค่าเช่า</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
-</head>
-<body>
-<div class="container mt-4">
-<h2 class="mb-4 text-center">รายการเข้าพักของห้อง <?php echo $room_number; ?></h2>
-    <div class="table-responsive">
-        <table class="table table-striped table-hover table-bordered">
-            <thead class="table-light">
-                <?php if ($result->num_rows > 0): ?>
-                <tr>
-                    <th>ลำดับ</th>
-                    <th>เลขห้อง</th>
-                    <th>ชื่อสมาชิก</th>
-                    <th>วันที่เริ่มเข้าพัก</th>
-                    <th>วันที่สิ้นสุดการเข้าพัก</th>
-                    <th>จัดการ</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php 
-                $index = 1;
-                while ($row = $result->fetch_assoc()): ?>
-                    <tr>
-                        <td><?php echo sprintf("%03d", $index); ?></td>
-                        <td><?php echo $row['room_number']; ?></td>
-                        <td><?php echo $row['mem_fname'] . " " . $row['mem_lname']; ?></td>
-                        <td><?php echo $row['stay_start_date']; ?></td>
-                        <td><?php echo $row['stay_end_date']; ?></td>
-                        <td>
-                            <!-- ปุ่มแก้ไข -->
-                            <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editStayModal<?php echo $row['stay_id']; ?>">
-                                <i class="bi bi-pencil"></i> แก้ไข
-                            </button>
-                            <!-- ปุ่มลบ -->
-                            <button class="btn btn-danger btn-sm" onclick="deleteStay(<?php echo $row['stay_id']; ?>)">
-                            <i class="bi bi-trash"></i> ลบ
-                        </button>
-
-                        </td>
-                    </tr>
-
-                    <!-- Modal แก้ไข -->
-                    <div class="modal fade" id="editStayModal<?php echo $row['stay_id']; ?>" tabindex="-1" aria-labelledby="editStayModalLabel<?php echo $row['stay_id']; ?>" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="editStayModalLabel<?php echo $row['stay_id']; ?>">แก้ไขข้อมูลการเข้าพัก</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                </div>
-                                <form method="POST" action="stay_history.php?room_id=<?php echo $room_id; ?>">
-                                    <div class="modal-body">
-                                        <div class="mb-3">
-                                            <label for="stay_start_date" class="form-label">วันที่เริ่มเข้าพัก</label>
-                                            <input type="date" class="form-control" name="stay_start_date" value="<?php echo $row['stay_start_date']; ?>" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="stay_end_date" class="form-label">วันที่สิ้นสุดการเข้าพัก</label>
-                                            <input type="date" class="form-control" name="stay_end_date" value="<?php echo $row['stay_end_date']; ?>" required>
-                                        </div>
-                                        <input type="hidden" name="stay_id" value="<?php echo $row['stay_id']; ?>">
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ปิด</button>
-                                        <button type="submit" name="update_stay" class="btn btn-primary">อัพเดต</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-
-                <?php 
-                $index++; 
-                endwhile; ?>
-            </tbody>
-        </table>
-    </div>
-    <?php else: ?>
-        <p>ไม่มีประวัติการเข้าพักสำหรับห้องนี้</p>
-    <?php endif; ?>
-</div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js"></script>
-
-<script>
-    <?php 
-    // ถ้ามีการตั้งค่าข้อความ SweetAlert
-    if (isset($alert_message)) {
-        echo $alert_message;
-    }
-    ?>
-
-function deleteStay(stayId) {
-    Swal.fire({
-        title: 'ยืนยันการลบ?',
-        text: 'คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลการเข้าพักนี้?',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'ลบ',
-        cancelButtonText: 'ยกเลิก'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // ใช้ AJAX ลบข้อมูล
-            var xhr = new XMLHttpRequest();
-            xhr.open("POST", "stay_history.php?room_id=<?php echo $room_id; ?>", true);
-            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-            xhr.onload = function() {
-                if (xhr.status == 200) {
-                    // รีเฟรชตารางข้อมูลหลังลบ
-                    Swal.fire({
-                        title: 'สำเร็จ!',
-                        text: 'ลบข้อมูลสำเร็จ',
-                        icon: 'success',
-                        confirmButtonText: 'ตกลง'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            window.location.reload(); // รีเฟรชหน้า
-                        }
-                    });
-                } else {
-                    Swal.fire({
-                        title: 'เกิดข้อผิดพลาด!',
-                        text: 'ไม่สามารถลบข้อมูลได้',
-                        icon: 'error',
-                        confirmButtonText: 'ตกลง'
-                    });
-                }
-            };
-            xhr.send("action=delete&stay_id=" + stayId);
-        }
-    });
+// รับ room_id จาก URL
+if (isset($_GET['room_id'])) {
+    $room_id = $_GET['room_id'];
+} else {
+    header("Location: stay_list.php");
+    exit();
 }
 
-</script>
+// ลบข้อมูลการเข้าพัก
+if (isset($_GET['delete_id'])) {
+    $delete_id = $_GET['delete_id'];
+    $delete_query = "DELETE FROM stay WHERE stay_id = ?";
+    $stmt_delete = $conn->prepare($delete_query);
+    $stmt_delete->bind_param("i", $delete_id);
+    $stmt_delete->execute();
+    header("Location: " . $_SERVER['PHP_SELF'] . "?room_id=" . $room_id);
+    exit();
+}
 
-</body>
+// แก้ไขข้อมูลการเข้าพัก
+if (isset($_POST['edit_stay'])) {
+    $stay_id = $_POST['stay_id'];
+    $stay_start_date = $_POST['stay_start_date'] ?: '-';
+    $stay_end_date = $_POST['stay_end_date'] ?: '-';
+    $stay_deposit = $_POST['stay_deposit'] ?: 'NULL'; // ถ้าไม่มีค่ามัดจำให้ส่ง NULL
+
+    // ใช้ SQL ปรับปรุงข้อมูล
+    $update_query = "UPDATE stay SET stay_start_date = ?, stay_end_date = ?, stay_deposit = ? WHERE stay_id = ?";
+    $stmt_update = $conn->prepare($update_query);
+    $stmt_update->bind_param("sssi", $stay_start_date, $stay_end_date, $stay_deposit, $stay_id);
+    $stmt_update->execute();
+    header("Location: " . $_SERVER['PHP_SELF'] . "?room_id=" . $room_id);
+    exit();
+}
+
+// ดึงข้อมูลหมายเลขห้องจากฐานข้อมูล
+$room_query = "SELECT room_number FROM room WHERE room_id = ?";
+$stmt_room = $conn->prepare($room_query);
+$stmt_room->bind_param("i", $room_id);
+$stmt_room->execute();
+$result_room = $stmt_room->get_result();
+
+$room_number = '';
+if ($result_room && $result_room->num_rows > 0) {
+    $room_data = $result_room->fetch_assoc();
+    $room_number = $room_data['room_number'];
+}
+
+// ดึงข้อมูลการเข้าพักตาม room_id
+$stay_query = "SELECT s.stay_id, s.room_id, s.mem_id, s.stay_start_date, s.stay_end_date, s.stay_deposit, m.mem_fname, m.mem_lname
+               FROM stay s
+               JOIN `member` m ON s.mem_id = m.mem_id
+               WHERE s.room_id = ?";
+$stmt = $conn->prepare($stay_query);
+$stmt->bind_param("i", $room_id);
+$stmt->execute();
+$result_stay = $stmt->get_result();
+?>
+<!DOCTYPE html>
+<html :class="{ 'theme-dark': dark }" x-data="data()" lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ประวัติการเข้าพัก</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="./assets/css/tailwind.output.css" />
+  </head>
+  <body>
+  <div class="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <?php include 'includes/sidebar.php'; ?>
+
+    <main class="h-full overflow-y-auto">
+        <div class="container px-6 mx-auto grid">
+            <h2 class="my-6 text-2xl font-semibold text-gray-700 dark:text-gray-200">ประวัติการเข้าพักของห้องหมายเลข: <?php echo $room_number; ?></h2>
+
+            <?php
+            if ($result_stay && $result_stay->num_rows > 0) {
+                echo "<div class='bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-x-auto'>";
+                echo "<table class='w-full'>";
+                echo "<thead class='bg-gray-50 dark:bg-gray-700'>
+        <tr>
+            <th class='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider'>
+                <i class='fas fa-user'></i> ชื่อผู้เข้าพัก
+            </th>
+            <th class='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider'>
+                <i class='fas fa-calendar-day'></i> วันที่เริ่มเข้าพัก
+            </th>
+            <th class='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider'>
+                <i class='fas fa-calendar-times'></i> วันที่สิ้นสุดการเข้าพัก
+            </th>
+            <th class='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider'>
+                <i class='fas fa-money-check-alt'></i> มัดจำ
+            </th>
+            <th class='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider'>
+                <i class='fas fa-cog'></i> จัดการ
+            </th>
+        </tr>
+      </thead>";
+                echo "<tbody class='bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700'>";
+
+                // แสดงประวัติการเข้าพัก
+                while ($stay = $result_stay->fetch_assoc()) {
+                    $stay_id = $stay['stay_id'];
+                    $guest_name = $stay['mem_fname'] . ' ' . $stay['mem_lname'];
+                    $stay_start_date = $stay['stay_start_date'] == '-' ? '-' : $stay['stay_start_date'];
+                    $stay_end_date = $stay['stay_end_date'] == '-' ? '-' : $stay['stay_end_date'];
+                    $stay_deposit = $stay['stay_deposit'] ? $stay['stay_deposit'] : 'ไม่มีค่ามัดจำ';
+
+                    echo "<tr>
+                        <td class='px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300'>{$guest_name}</td>
+                        <td class='px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300 '>{$stay_start_date}</td>
+                        <td class='px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300 '>{$stay_end_date}</td>
+                        <td class='px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300 '>{$stay_deposit}</td>
+                        <td class='px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300'>
+                            <button onclick='openEditModal({$stay_id}, \"{$stay_start_date}\", \"{$stay_end_date}\", \"{$stay_deposit}\")' class='text-blue-500 hover:text-blue-700'>แก้ไข</button> | 
+                            <button onclick='openDeleteModal({$stay_id})' class='text-red-500 hover:text-red-700'>ลบ</button>
+                        </td>
+                      </tr>";
+                }
+                echo "</tbody>";
+                echo "</table>";
+                echo "</div>";
+            } else {
+                echo "<p class='text-gray-700 dark:text-gray-300'>ไม่มีประวัติการเข้าพักสำหรับห้องนี้</p>";
+            }
+            ?>
+        </div>
+    </main>
+</div>
+
+    <!-- Modal แก้ไข -->
+<div id="editModal" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black bg-opacity-50">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-full sm:w-1/2 md:w-1/3 mx-4">
+        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200">แก้ไขข้อมูลการเข้าพัก</h3>
+        <form method="POST">
+            <input type="hidden" id="edit_stay_id" name="stay_id" />
+            <div class="mb-4">
+                <label for="stay_start_date" class="block text-sm text-gray-600 dark:text-gray-300">วันที่เริ่มเข้าพัก</label>
+                <input type="date" id="stay_start_date" name="stay_start_date" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100" />
+            </div>
+            <div class="mb-4">
+                <label for="stay_end_date" class="block text-sm text-gray-600 dark:text-gray-300">วันที่สิ้นสุดการเข้าพัก</label>
+                <input type="date" id="stay_end_date" name="stay_end_date" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100" />
+            </div>
+            <div class="mb-4">
+                <label for="stay_deposit" class="block text-sm text-gray-600 dark:text-gray-300">มัดจำ</label>
+                <input type="number" id="stay_deposit" name="stay_deposit" class="w-full p-2 border border-gray-300 dark:border-gray-600 rounded dark:bg-gray-700 dark:text-gray-100" />
+            </div>
+            <div class="mt-4 flex justify-end">
+                <button onclick="closeEditModal()" type="button" class="text-gray-500 dark:text-gray-300 px-4 py-2 mr-2">ยกเลิก</button>
+                <button type="submit" name="edit_stay" class="bg-blue-500 text-white px-4 py-2 rounded">บันทึก</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+    <!-- Modal ลบ -->
+    <div id="deleteModal" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black bg-opacity-50">
+      <div class="bg-white dark:bg-gray-800 p-6 rounded-lg w-full sm:w-1/2 md:w-1/3 mx-4">
+        <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200">ยืนยันการลบข้อมูล</h3>
+        <p class="text-sm text-gray-500 dark:text-gray-400">คุณแน่ใจหรือไม่ว่าต้องการลบข้อมูลการเข้าพักนี้?</p>
+        <div class="mt-4 flex justify-end">
+          <button onclick="closeDeleteModal()" class="text-gray-500 dark:text-gray-300 px-4 py-2 mr-2">ยกเลิก</button>
+          <button id="deleteButton" class="bg-red-500 text-white px-4 py-2">ลบ</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function openEditModal(stayId, startDate, endDate, deposit) {
+        document.getElementById('editModal').classList.remove('hidden');
+        document.getElementById('edit_stay_id').value = stayId;
+        document.getElementById('stay_start_date').value = startDate === '-' ? '' : startDate;
+        document.getElementById('stay_end_date').value = endDate === '-' ? '' : endDate;
+        document.getElementById('stay_deposit').value = deposit === 'ไม่มีค่ามัดจำ' ? '' : deposit;
+      }
+
+      function closeEditModal() {
+        document.getElementById('editModal').classList.add('hidden');
+      }
+
+      function openDeleteModal(stayId) {
+        document.getElementById('deleteModal').classList.remove('hidden');
+        document.getElementById('deleteButton').onclick = function() {
+          window.location.href = '?room_id=<?php echo $room_id; ?>&delete_id=' + stayId;
+        };
+      }
+
+      function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.add('hidden');
+      }
+    </script>
+  </body>
 </html>

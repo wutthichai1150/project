@@ -1,9 +1,8 @@
-<?php 
+<?php
 session_start();
 include('../includes/db.php');
 include('../includes/navbar_user.php');
 
-// ตรวจสอบการเชื่อมต่อฐานข้อมูล
 if (!$conn) {
     die("Connection failed: " . mysqli_connect_error());
 }
@@ -13,13 +12,9 @@ if (!isset($_SESSION['mem_user'])) {
     exit();
 }
 
-// รับค่า mem_user จากเซสชัน
 $mem_user = $_SESSION['mem_user'];
-
-// รับค่า room_id จาก URL
 $room_id = isset($_GET['room_id']) ? $_GET['room_id'] : null;
 
-// คำสั่ง SQL สำหรับการดึงชื่อและนามสกุลของผู้ใช้งาน
 $check_user_sql = "SELECT mem_fname, mem_lname FROM `member` WHERE mem_user = '$mem_user'";
 $check_user_result = mysqli_query($conn, $check_user_sql);
 
@@ -32,7 +27,6 @@ $mem_fname = $user_data['mem_fname'];
 $mem_lname = $user_data['mem_lname'];
 
 if ($room_id) {
-    // ตรวจสอบว่า mem_user เป็นเจ้าของห้องหรือไม่
     $check_owner_sql = "SELECT s.room_id 
                         FROM stay s
                         JOIN `member` m ON s.mem_id = m.mem_id
@@ -49,7 +43,6 @@ if ($room_id) {
         exit();
     }
 
-    // คำสั่ง SQL สำหรับการดึงข้อมูลประวัติการซ่อมที่ชื่อผู้แจ้งตรงกับข้อมูลใน mem_fname และ mem_lname
     $sql = "SELECT rr.repair_id, rr.room_id, rr.repair_name, rr.repair_type, rr.repair_eqm_name, rr.repair_detail, rr.repair_date, rr.repair_state, r.room_number, rr.repair_image
     FROM repair_requests rr
     JOIN room r ON rr.room_id = r.room_id
@@ -58,7 +51,6 @@ if ($room_id) {
     ORDER BY rr.repair_date DESC";
 
 } else {
-    // กรณีไม่มี room_id (แสดงทั้งหมด)
     $sql = "SELECT rr.repair_id, rr.room_id, rr.repair_name, rr.repair_type, rr.repair_eqm_name, rr.repair_detail, rr.repair_date, rr.repair_state, r.room_number, rr.repair_image
             FROM repair_requests rr
             JOIN room r ON rr.room_id = r.room_id
@@ -67,7 +59,6 @@ if ($room_id) {
             ORDER BY rr.repair_date DESC";
 }
 
-// ตรวจสอบผลการ query
 $result = mysqli_query($conn, $sql);
 
 if (!$result) {
@@ -81,49 +72,68 @@ if (!$result) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ประวัติการซ่อม</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet"> <!-- เพิ่ม Font Awesome -->
+    <!-- Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/2.2.2/css/dataTables.dataTables.min.css">
 </head>
-<body>
-<div class="container mt-4">
-<h3 class="mb-4 text-center text-black">
-    <i class="fas fa-tools"></i>
-    ประวัติการซ่อมครุภัณฑ์
-</h3>
+<body class="bg-gray-100">
+<div class="container mx-auto px-4 py-8">
+    <h3 class="text-xl font-bold text-center mb-6">
+        <i class="fas fa-tools"></i>
+        ประวัติการซ่อมครุภัณฑ์
+    </h3>
 
     <?php if (mysqli_num_rows($result) > 0): ?>
-        <div class="table-responsive">
-            <table class="table table-sm table-striped table-hover table-bordered text-center">
-                <thead class="table-dark">
+        <div class="overflow-x-auto">
+            <table id="repairTable" class="min-w-full bg-white border border-gray-300 rounded-lg shadow-sm mt-4 text-xs">
+                <thead class="bg-gray-100">
                     <tr>
-                        <th>หมายเลขห้อง</th>
-                        <th>ชื่อผู้แจ้ง <i class="fas fa-user"></i></th> <!-- เพิ่มไอคอน -->
-                        <th>ประเภทครุภัณฑ์ <i class="fas fa-cogs"></i></th> <!-- เพิ่มไอคอน -->
-                        <th>ชื่อครุภัณฑ์ <i class="fas fa-cog"></i></th> <!-- เพิ่มไอคอน -->
-                        <th>รายละเอียด <i class="fas fa-info-circle"></i></th> <!-- เพิ่มไอคอน -->
-                        <th>วันที่แจ้งซ่อม <i class="fas fa-calendar-alt"></i></th> <!-- เพิ่มไอคอน -->
-                        <th>สถานะ <i class="fas fa-check-circle"></i></th> <!-- เพิ่มไอคอน -->
-                        <th>รูปภาพ <i class="fas fa-image"></i></th> <!-- เพิ่มไอคอน -->
+                        <th class="py-1 px-2 text-left font-medium text-gray-700 uppercase">ห้อง</th>
+                        <th class="py-1 px-2 text-left font-medium text-gray-700 uppercase">ผู้แจ้ง</th>
+                        <th class="py-1 px-2 text-left font-medium text-gray-700 uppercase hidden sm:table-cell">ประเภท</th>
+                        <th class="py-1 px-2 text-left font-medium text-gray-700 uppercase hidden sm:table-cell">ชื่อครุภัณฑ์</th>
+                        <th class="py-1 px-2 text-left font-medium text-gray-700 uppercase">รายละเอียด</th>
+                        <th class="py-1 px-2 text-left font-medium text-gray-700 uppercase">วันที่แจ้ง</th>
+                        <th class="py-1 px-2 text-left font-medium text-gray-700 uppercase">สถานะ</th>
+                        <th class="py-1 px-2 text-left font-medium text-gray-700 uppercase">รูปภาพ</th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php while ($row = mysqli_fetch_assoc($result)): ?>
-                        <tr>
-                            <td><?php echo $row['room_number']; ?></td>
-                            <td><?php echo $row['repair_name']; ?></td>
-                            <td><?php echo $row['repair_type']; ?></td>
-                            <td><?php echo $row['repair_eqm_name']; ?></td>
-                            <td><?php echo $row['repair_detail']; ?></td>
-                            <td><?php echo $row['repair_date']; ?></td>
-                            <td><?php echo $row['repair_state']; ?></td>
-                            <td>
+                        <tr class="border-b border-gray-200 hover:bg-gray-50 transition duration-200">
+                            <td class="py-1 px-2 text-gray-700"><?php echo $row['room_number']; ?></td>
+                            <td class="py-1 px-2 text-gray-700"><?php echo $row['repair_name']; ?></td>
+                            <td class="py-1 px-2 text-gray-700 hidden sm:table-cell"><?php echo $row['repair_type']; ?></td>
+                            <td class="py-1 px-2 text-gray-700 hidden sm:table-cell"><?php echo $row['repair_eqm_name']; ?></td>
+                            <td class="py-1 px-2 text-gray-700"><?php echo $row['repair_detail']; ?></td>
+                            <td class="py-1 px-2 text-gray-700"><?php echo $row['repair_date']; ?></td>
+                            <td class="py-1 px-2 text-gray-700">
+                                <?php 
+                                $status_class = '';
+                                switch ($row['repair_state']) {
+                                    case 'กำลังดำเนินการ':
+                                        $status_class = 'text-yellow-500'; 
+                                        break;
+                                    case 'ซ่อมบำรุงเรียบร้อย':
+                                        $status_class = 'text-green-500'; 
+                                        break;
+                                    case 'รอรับเรื่อง':
+                                        $status_class = 'text-blue-500';
+                                        break;
+                                    default:
+                                        $status_class = 'text-gray-700'; 
+                                }
+                                ?>
+                                <span class="<?php echo $status_class; ?>"><?php echo $row['repair_state']; ?></span>
+                            </td>
+                            <td class="py-1 px-2 text-gray-700">
                                 <?php if ($row['repair_image']): ?>
                                     <img src="../uploads/repair/<?php echo $row['repair_image']; ?>" alt="Image" 
-                                        style="max-width: 100px; max-height: 100px; object-fit: cover;" 
-                                        data-bs-toggle="modal" data-bs-target="#imageModal" 
-                                        data-bs-image="../uploads/repair/<?php echo $row['repair_image']; ?>" />
+                                        class="w-12 h-12 object-cover cursor-pointer" 
+                                        onclick="openModal('../uploads/repair/<?php echo $row['repair_image']; ?>')" />
                                 <?php else: ?>
-                                    <i class="fas fa-times-circle" style="color: red;"></i>
+                                    <span class="text-red-500">ไม่มีรูปภาพ</span>
                                 <?php endif; ?>
                             </td>
                         </tr>
@@ -132,37 +142,40 @@ if (!$result) {
             </table>
         </div>
     <?php else: ?>
-        <p>ยังไม่มีข้อมูลการซ่อม</p>
+        <p class="text-center text-gray-600">ยังไม่มีข้อมูลการซ่อม</p>
     <?php endif; ?>
 </div>
 
 <!-- Modal for image view -->
-<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="imageModalLabel">รูปภาพขยาย</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <img src="" id="modalImage" class="img-fluid" alt="Expanded Image">
-            </div>
-        </div>
+<div id="imageModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center" onclick="closeModal()">
+    <div class="bg-white rounded-lg overflow-hidden max-w-2xl w-full">
+        <img src="" id="modalImage" class="w-full h-auto" alt="Expanded Image">
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+<!-- DataTables JS -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/2.2.2/js/dataTables.min.js"></script>
 <script>
-    // Set the image src for modal on click
-    const imageElements = document.querySelectorAll('[data-bs-toggle="modal"]');
-    const modalImage = document.getElementById('modalImage');
-
-    imageElements.forEach(img => {
-        img.addEventListener('click', (e) => {
-            const imageUrl = e.target.getAttribute('data-bs-image');
-            modalImage.src = imageUrl;
+    // Initialize DataTables
+    $(document).ready(function() {
+        $('#repairTable').DataTable({
+            paging: true, // Enable pagination
+            searching: true, // Enable search
+            ordering: true, // Enable sorting
+            info: true, // Show table information
+            responsive: true // Enable responsive design
         });
     });
+
+    function openModal(imageUrl) {
+        document.getElementById('modalImage').src = imageUrl;
+        document.getElementById('imageModal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+        document.getElementById('imageModal').classList.add('hidden');
+    }
 </script>
 
 </body>

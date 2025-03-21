@@ -7,20 +7,6 @@ if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 
-include('../includes/navbar_admin.php');
-
-// ดึงข้อมูลอัตราค่าไฟและค่าน้ำ
-$query_rate = "SELECT electricity_rate, water_rate FROM rate WHERE id = 1";
-$stmt_rate = $conn->prepare($query_rate);
-if ($stmt_rate) {
-    $stmt_rate->execute();
-    $rate_result = $stmt_rate->get_result();
-    $rate = $rate_result->fetch_assoc();
-} else {
-    echo "เกิดข้อผิดพลาดในการดึงข้อมูลอัตราค่าไฟและค่าน้ำ";
-    exit();
-}
-
 if (isset($_GET['room_id'])) {
     $room_id = $_GET['room_id'];
 
@@ -46,7 +32,6 @@ if (isset($_GET['room_id'])) {
         echo "ไม่พบห้องที่ต้องการแก้ไข";
         exit();
     }
-
 } else {
     echo "ห้องที่ต้องการแก้ไขไม่ถูกต้อง";
     exit();
@@ -82,49 +67,64 @@ if (isset($_POST['update_room'])) {
     }
 }
 
-// ถ้าผู้ใช้ส่งข้อมูลฟอร์มสำหรับการเข้าพัก
 if (isset($_POST['add_stay'])) {
     $mem_id = $_POST['mem_id'];
     $stay_start_date = $_POST['stay_start_date'];
+    $stay_deposit = isset($_POST['stay_deposit']) && $_POST['stay_deposit'] !== "" ? $_POST['stay_deposit'] : NULL;
 
+    // ตรวจสอบและแปลงวันที่จาก dd/mm/yyyy เป็น yyyy-mm-dd
+    $date_parts = explode('/', $stay_start_date); // แยกวัน, เดือน, ปี
+    if (count($date_parts) == 3) {
+        $stay_start_date = $date_parts[2] . '-' . $date_parts[1] . '-' . $date_parts[0]; // สลับเป็น yyyy-mm-dd
+    } else {
+        echo "<script>alert('รูปแบบวันที่ไม่ถูกต้อง');</script>";
+        exit();
+    }
+
+    // ตรวจสอบให้แน่ใจว่าไม่มีข้อมูลที่จำเป็นหายไป
     if (empty($mem_id) || empty($stay_start_date)) {
         echo "<script>alert('กรุณากรอกข้อมูลให้ครบถ้วน');</script>";
     } else {
-        // SQL สำหรับการบันทึกข้อมูลการเข้าพัก
-        $insert_query = "INSERT INTO stay (mem_id, room_id, stay_start_date) VALUES (?, ?, ?)";
+        // SQL สำหรับการบันทึกข้อมูล (ให้ stay_deposit รับค่า NULL ได้)
+        $insert_query = "INSERT INTO stay (mem_id, room_id, stay_start_date, stay_deposit) VALUES (?, ?, ?, ?)";
         $stmt = $conn->prepare($insert_query);
         if ($stmt) {
-            $stmt->bind_param("iis", $mem_id, $room_id, $stay_start_date);
+            $stmt->bind_param("iisd", $mem_id, $room_id, $stay_start_date, $stay_deposit);
 
             if ($stmt->execute()) {
                 echo "<script>alert('บันทึกข้อมูลการเข้าพักเรียบร้อย!'); window.location.href='manage_room.php?room_id=$room_id';</script>";
             } else {
                 echo "เกิดข้อผิดพลาด: " . $stmt->error;
             }
+            $stmt->close();
         } else {
-            echo "เกิดข้อผิดพลาดในการเตรียมคำสั่ง SQL สำหรับการบันทึกข้อมูล";
+            echo "เกิดข้อผิดพลาดในการเตรียมคำสั่ง SQL";
         }
     }
 }
+
+
+// ถ้าผู้ใช้ส่งข้อมูลฟอร์มสำหรับการอัพเดต
 if (isset($_POST['update_stay'])) {
-    // รับข้อมูลจากฟอร์ม
     $stay_id = $_POST['stay_id'];
     $mem_id = $_POST['mem_id'];
     $stay_start_date = $_POST['stay_start_date'];
+    $stay_deposit = isset($_POST['stay_deposit']) && $_POST['stay_deposit'] !== "" ? $_POST['stay_deposit'] : NULL; // ถ้าไม่กรอก ให้เป็น NULL
 
-    // เตรียมคำสั่ง SQL เพื่ออัพเดตข้อมูล
-    $update_query = "UPDATE stay SET mem_id = ?, stay_start_date = ? WHERE stay_id = ?";
+    // แปลงวันที่เป็นรูปแบบที่ฐานข้อมูลรองรับ (YYYY-MM-DD)
+    // ใช้ฟังก์ชัน DateTime เพื่อให้การแปลงวันที่ทำงานได้อย่างถูกต้อง
+    $stay_start_date = DateTime::createFromFormat('d/m/Y', $stay_start_date)->format('Y-m-d');
 
-    // ใช้ Prepared Statement เพื่อป้องกัน SQL Injection
+    // อัปเดตข้อมูล (ให้ stay_deposit เป็น NULL ได้)
+    $update_query = "UPDATE stay SET mem_id = ?, stay_start_date = ?, stay_deposit = ? WHERE stay_id = ?";
+
     if ($stmt = $conn->prepare($update_query)) {
-        $stmt->bind_param("isi", $mem_id, $stay_start_date, $stay_id);
+        $stmt->bind_param("isdi", $mem_id, $stay_start_date, $stay_deposit, $stay_id);
         $stmt->execute();
         
         if ($stmt->affected_rows > 0) {
-            // การอัพเดตสำเร็จ
             echo "<script>alert('อัพเดตข้อมูลการเข้าพักสำเร็จ'); window.location.href = 'manage_room.php?room_id=" . $room_id . "';</script>";
         } else {
-            // ถ้าไม่มีการเปลี่ยนแปลง
             echo "<script>alert('ไม่มีการเปลี่ยนแปลงข้อมูล');</script>";
         }
         $stmt->close();
@@ -133,239 +133,186 @@ if (isset($_POST['update_stay'])) {
     }
 }
 
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_invoice'])) {
+    $room_id = $_POST['room_id'];
+    $rec_room_charge = $_POST['rec_room_charge'];
+    $rec_electricity = $_POST['rec_electricity'];
+    $rec_water = $_POST['rec_water'];
+    $rec_total = $_POST['rec_total'];
+    $rec_status = $_POST['rec_status'];
+
+    // คำสั่ง SQL สำหรับเพิ่มข้อมูล
+    $sql = "INSERT INTO invoice_receipt (room_id, rec_room_charge, rec_electricity, rec_water, rec_total, rec_status) 
+            VALUES (?, ?, ?, ?, ?, ?)";
+    $stmt = $conn->prepare($sql);
+    if ($stmt === false) {
+        die("การเตรียมคำสั่ง SQL ล้มเหลว: " . $conn->error);
+    }
+    $stmt->bind_param("idddds", $room_id, $rec_room_charge, $rec_electricity, $rec_water, $rec_total, $rec_status);
+
+    if ($stmt->execute()) {
+        $_SESSION['alert'] = [
+            'status' => 'success',
+            'message' => 'เพิ่มใบแจ้งหนี้เรียบร้อยแล้ว'
+        ];
+    } else {
+        $_SESSION['alert'] = [
+            'status' => 'error',
+            'message' => 'ไม่สามารถเพิ่มใบแจ้งหนี้ได้: ' . $stmt->error
+        ];
+    }
+    header("Location: manage_invoice.php"); // Redirect กลับไปที่หน้าเดิม
+    exit();
+}
+
+$query_rate = "SELECT electricity_rate, water_rate FROM rate WHERE id = 1";
+$stmt_rate = $conn->prepare($query_rate);
+if ($stmt_rate) {
+    $stmt_rate->execute();
+    $rate_result = $stmt_rate->get_result();
+    $rate = $rate_result->fetch_assoc();
+} else {
+    echo "เกิดข้อผิดพลาดในการดึงข้อมูลอัตราค่าไฟและค่าน้ำ";
+    exit();
+}
 ?>
-
-
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <title>Edit Room</title>
+    <title>จัดการห้องพัก</title>
+    <!-- Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+
 </head>
-<body>
+<body class="bg-gray-50 dark:bg-gray-900">
+    <div class="flex h-screen">
+        
+        <!-- Sidebar -->
+        <?php include 'includes/sidebar.php'; ?>
 
-<div class="container mt-4">
-    <div class="card">
-        <div class="card-body">
-            <h2 class="card-title mb-4">ข้อมูลห้องพัก</h2>
+        <!-- Main Content -->
+        <main class="h-full overflow-y-auto">
+            <div class="container px-6 mx-auto grid">
+                <h2 class="my-6 text-2xl font-semibold text-gray-700 dark:text-gray-200">จัดการห้องพัก: ห้อง <?= $room['room_number'] ?></h2>
 
-            <!-- แสดงข้อมูลห้อง -->
-            <div class="mb-3 d-flex align-items-center">
-                <i class="bi bi-door-open me-2"></i> 
-                <strong>เลขห้อง:</strong>
-                <p class="ms-3 mb-0"><?php echo $room['room_number']; ?></p>
-            </div>
-            <div class="mb-3 d-flex align-items-center">
-                <i class="bi bi-house-door me-2"></i>
-                <strong>ประเภทห้อง:</strong>
-                <p class="ms-3 mb-0"><?php echo $room['room_type']; ?></p>
-            </div>
-            <div class="mb-3 d-flex align-items-center">
-                <i class="bi bi-cash-coin me-2"></i> 
-                <strong>ราคา:</strong>
-                <p class="ms-3 mb-0"><?php echo $room['room_price']; ?></p>
-            </div>
-            <div class="mb-3 d-flex align-items-center">
-                <i class="bi bi-circle-fill me-2"></i> 
-                <strong>สถานะห้อง:</strong>
-                <p class="ms-3 mb-0"><?php echo $room['room_status']; ?></p>
-            </div>
-
-            <div class="d-flex justify-content-start">
-            <a href="stay_history.php?room_id=<?php echo $room['room_id']; ?>" class="btn btn-primary">
-                รายการเข้าพัก
-            </a>
-        </div>
-        </div>
-    </div>
-</div>
-
-
-
-  <!-- Modal แก้ไข -->
-<div class="modal fade" id="editroom<?php echo $room['room_id']; ?>" tabindex="-1" aria-labelledby="editModalLabel<?php echo $room['room_id']; ?>" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <!-- ฟอร์มแก้ไขข้อมูลห้อง -->
-                <form id="editRoomForm<?php echo $room['room_id']; ?>" method="POST" onsubmit="event.preventDefault(); updateRoom(<?php echo $room['room_id']; ?>);">
-                    <input type="hidden" name="room_id" value="<?php echo $room['room_id']; ?>">
-
-                    <div class="mb-3">
-                        <label for="room_number" class="form-label">เลขห้อง</label>
-                        <input type="text" class="form-control" id="room_number" name="room_number" value="<?php echo $room['room_number']; ?>" required>
-                    </div>
-                    
-                    <!-- ฟิลด์ประเภทห้อง (ใช้ select) -->
-                    <div class="mb-3">
-                        <label for="room_type" class="form-label">ประเภทห้อง</label>
-                        <select class="form-select" id="room_type" name="room_type" required>
-                            <option value="แอร์" <?php echo ($room['room_type'] == 'แอร์') ? 'selected' : ''; ?>>แอร์</option>
-                            <option value="พัดลม" <?php echo ($room['room_type'] == 'พัดลม') ? 'selected' : ''; ?>>พัดลม</option>
-                        </select>
+                <!-- การ์ดแสดงข้อมูลห้องพัก -->
+                <div class="grid gap-6 mb-8 md:grid-cols-2 xl:grid-cols-4">
+                    <!-- การ์ดเลขห้อง -->
+                    <div class="flex items-center p-4 bg-white rounded-lg shadow-xs dark:bg-gray-800">
+                        <div class="p-3 mr-4 text-blue-500 bg-blue-100 rounded-full dark:text-blue-100 dark:bg-blue-500">
+                            <i class="fas fa-door-open"></i>
+                        </div>
+                        <div>
+                            <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">เลขห้อง</p>
+                            <p class="text-lg font-semibold text-gray-700 dark:text-gray-200"><?= $room['room_number'] ?></p>
+                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="room_price" class="form-label">ราคา</label>
-                        <input type="number" class="form-control" id="room_price" name="room_price" value="<?php echo $room['room_price']; ?>" required>
+                    <!-- การ์ดประเภทห้อง -->
+                    <div class="flex items-center p-4 bg-white rounded-lg shadow-xs dark:bg-gray-800">
+                        <div class="p-3 mr-4 text-green-500 bg-green-100 rounded-full dark:text-green-100 dark:bg-green-500">
+                            <i class="fas fa-home"></i>
+                        </div>
+                        <div>
+                            <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">ประเภทห้อง</p>
+                            <p class="text-lg font-semibold text-gray-700 dark:text-gray-200"><?= $room['room_type'] ?></p>
+                        </div>
                     </div>
-                    
-                    <!-- ฟิลด์สถานะห้อง (ใช้ select) -->
-                    <div class="mb-3">
-                        <label for="room_status" class="form-label">สถานะห้อง</label>
-                        <select class="form-select" id="room_status" name="room_status" required>
-                            <option value="ว่าง" <?php echo ($room['room_status'] == 'ว่าง') ? 'selected' : ''; ?>>ว่าง</option>
-                            <option value="มีผู้เช่า" <?php echo ($room['room_status'] == 'มีผู้เช่า') ? 'selected' : ''; ?>>มีผู้เช่า</option>
-                            <option value="ซ่อมแซม" <?php echo ($room['room_status'] == 'ซ่อมแซม') ? 'selected' : ''; ?>>ซ่อมแซม</option>
-                        </select>
+
+                    <!-- การ์ดราคา -->
+                    <div class="flex items-center p-4 bg-white rounded-lg shadow-xs dark:bg-gray-800">
+                        <div class="p-3 mr-4 text-orange-500 bg-orange-100 rounded-full dark:text-orange-100 dark:bg-orange-500">
+                            <i class="fas fa-money-bill-wave"></i>
+                        </div>
+                        <div>
+                            <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">ราคา</p>
+                            <p class="text-lg font-semibold text-gray-700 dark:text-gray-200"><?= number_format($room['room_price']) ?> บาท</p>
+                        </div>
                     </div>
-                    
-                    <!-- ปุ่มบันทึก -->
-                    <button type="submit" class="btn btn-warning">บันทึกการเปลี่ยนแปลง</button>
-                    <!-- ปุ่มลบ -->
-                    <button type="button" class="btn btn-danger" onclick="deleteRoom(<?php echo $room['room_id']; ?>)">ลบข้อมูลห้อง</button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
 
-
-
-<script>
-function updateRoom(roomId) {
-    var form = document.getElementById('editRoomForm' + roomId);
-    var formData = new FormData(form);
-
-    // ส่งข้อมูลด้วย AJAX
-    var xhr = new XMLHttpRequest();
-    xhr.open("POST", "update_room.php", true);
-    xhr.onload = function () {
-        if (xhr.status === 200) {
-            // เมื่อบันทึกสำเร็จ ปิด modal
-            $('#editroom' + roomId).modal('hide');  // ปิด modal หลังจากอัปเดตสำเร็จ
-
-            // รีเฟรช backdrop
-            $('.modal-backdrop').remove();  // ลบ backdrop ที่ค้างอยู่
-            $('body').removeClass('modal-open');  // รีเซ็ต class modal-open
-
-            // อัปเดตข้อมูลที่แสดงในหน้าโดยไม่ต้องโหลดใหม่
-            var response = JSON.parse(xhr.responseText);
-            if (response.success) {
-                // ใช้ SweetAlert แทน alert
-                Swal.fire({
-                    title: 'ข้อมูลห้องถูกอัปเดตแล้ว!',
-                    icon: 'success',
-                    confirmButtonText: 'ตกลง'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        // รีเฟรชหน้าใหม่หลังจากอัปเดตข้อมูล
-                        location.reload();  // รีเฟรชหน้าเว็บทันที
-                    }
-                });
-            } else {
-                // ใช้ SweetAlert แทน alert
-                Swal.fire({
-                    title: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูล!',
-                    icon: 'error',
-                    confirmButtonText: 'ตกลง'
-                });
-            }
-        } else {
-            // ใช้ SweetAlert แทน alert
-            Swal.fire({
-                title: 'เกิดข้อผิดพลาดในการส่งข้อมูล!',
-                icon: 'error',
-                confirmButtonText: 'ตกลง'
-            });
-        }
-    };
-    xhr.send(formData);
-}
-function deleteRoom(roomId) {
-    Swal.fire({
-        title: 'คุณแน่ใจหรือไม่ที่จะลบห้องนี้?',
-        text: "การลบข้อมูลไม่สามารถกู้คืนได้!",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'ลบ',
-        cancelButtonText: 'ยกเลิก'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            var xhr = new XMLHttpRequest();
-            xhr.open("POST", "delete_room.php", true);
-            xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-
-      
-            xhr.onload = function () {
-                if (xhr.status === 200) {
-                 
-                    $('#editroom' + roomId).modal('hide');
-
-                 
-                    $('.modal-backdrop').remove();
-                    $('body').removeClass('modal-open');
-
-                    var response = JSON.parse(xhr.responseText);
-                    if (response.success) {
-                       
-                        Swal.fire({
-                            title: 'ห้องถูกลบแล้ว!',
-                            icon: 'success',
-                            confirmButtonText: 'ตกลง'
-                        }).then(() => {
-                            
-                            window.location.href = 'admin_dashboard.php';
-                        });
-                    } else {
-                        // ใช้ SweetAlert แทน alert
-                        Swal.fire({
-                            title: 'เกิดข้อผิดพลาดในการลบข้อมูล!',
-                            icon: 'error',
-                            confirmButtonText: 'ตกลง'
-                        });
-                    }
-                } else {
-                    // ใช้ SweetAlert แทน alert
-                    Swal.fire({
-                        title: 'เกิดข้อผิดพลาดในการส่งข้อมูล!',
-                        icon: 'error',
-                        confirmButtonText: 'ตกลง'
-                    });
-                }
-            };
-
-            // ส่งข้อมูลห้องที่ต้องการลบ
-            xhr.send("room_id=" + roomId);
-        }
-    });
-}
-
-</script>
-
-
-
-
-
-
- <!-- ข้อมูลการเข้าพัก -->
-<hr>
-<h3 class="d-flex justify-content-center align-items-center">
-    ข้อมูลการเข้าพัก
-    <button class="btn btn-transparent ms-2" data-bs-toggle="modal" data-bs-target="#addStayModal">
-        <i class="bi bi-plus-circle"></i> <i class="bi bi-person-plus"></i>
+                    <!-- การ์ดสถานะห้อง -->
+                    <div class="flex items-center p-4 bg-white rounded-lg shadow-xs dark:bg-gray-800">
+                        <div class="p-3 mr-4 text-purple-500 bg-purple-100 rounded-full dark:text-purple-100 dark:bg-purple-500">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <div>
+                            <p class="mb-2 text-sm font-medium text-gray-600 dark:text-gray-400">สถานะห้อง</p>
+                            <p class="text-lg font-semibold text-gray-700 dark:text-gray-200"><?= $room['room_status'] ?></p>
+                        </div>
+                    </div>
+                </div>
+        <!-- ข้อมูลการเข้าพัก -->
+<hr class="my-6 border-gray-300">
+<div class="flex justify-center items-center mb-6">
+    <h3 class="text-2xl font-semibold mb-6 dark:text-gray-100">ข้อมูลการเข้าพัก</h3>
+    <button onclick="openAddStayModal()" class="ml-2 p-2 text-blue-500 hover:text-blue-600">
+        <i class="fas fa-user-plus"></i>
     </button>
-</h3>
+</div>
+<!-- Modal สำหรับเพิ่มข้อมูลการเข้าพัก -->
+<div id="addStayModal" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black bg-opacity-50">
+    <div class="bg-white w-full max-w-2xl p-6 rounded-lg shadow-md">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">เพิ่มข้อมูลการเข้าพัก</h3>
+        <form method="POST" action="manage_room.php?room_id=<?php echo $room_id; ?>">
+            <!-- ฟิลด์เลือกผู้เช่า -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700">เลือกผู้เช่า</label>
+                <select name="mem_id" class="w-full px-3 py-2 mt-1 text-sm text-gray-700 bg-gray-100 border rounded-md" required>
+                    <?php
+                    // ดึงข้อมูลสมาชิกทั้งหมดจากฐานข้อมูล
+                    $members_query = "SELECT mem_id, mem_fname, mem_lname FROM `member`";
+                    $members_result = $conn->query($members_query);
+                    while ($member = $members_result->fetch_assoc()) {
+                        echo "<option value='{$member['mem_id']}'>{$member['mem_fname']} {$member['mem_lname']}</option>";
+                    }
+                    ?>
+                </select>
+            </div>
 
-<div class="row d-flex justify-content-center">
+           <!-- วันที่เข้า -->
+                <div class="mb-4">
+                    <label for="stay_start_date" class="block text-sm font-medium text-gray-700">วันที่เข้า</label>
+                    <input type="text" name="stay_start_date" id="stay_start_date" class="w-full px-3 py-2 mt-1 text-sm text-gray-700 bg-gray-100 border rounded-md" required>
+                </div>
+
+
+                <script>
+                    document.addEventListener("DOMContentLoaded", function () {
+                        flatpickr("#stay_start_date", {
+                            dateFormat: "d/m/Y", // แสดงวันที่ในรูปแบบ DD/MM/YYYY
+                            defaultDate: "today", // วันที่เริ่มต้นคือวันที่ปัจจุบัน
+                        });
+                    });
+                </script>
+
+
+            <!-- ค่ามัดจำ (ไม่บังคับกรอก) -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700">ค่ามัดจำ (ถ้ามี)</label>
+                <input type="number" name="stay_deposit" step="0.01" min="0" class="w-full px-3 py-2 mt-1 text-sm text-gray-700 bg-gray-100 border rounded-md" placeholder="ระบุจำนวนเงิน (ถ้ามี)">
+            </div>
+
+            <!-- ปุ่ม Submit และ Cancel -->
+            <div class="flex justify-end space-x-4">
+                <button type="button" onclick="closeAddStayModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">ยกเลิก</button>
+                <button type="submit" name="add_stay" class="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600">บันทึก</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<div class="container mx-auto bg-white rounded-lg shadow-md p-6 max-w-4xl">
 <?php 
 // รับค่า room_id จาก URL
 $room_id = $_GET['room_id'];
@@ -373,7 +320,7 @@ $room_id = $_GET['room_id'];
 // ดึงข้อมูลการเข้าพักล่าสุดของห้องนั้น
 $stay_query = "
     SELECT s.stay_id, s.room_id, s.stay_start_date, s.stay_end_date, 
-           m.mem_fname, m.mem_lname, m.mem_phone, m.mem_address,
+           s.stay_deposit, m.mem_fname, m.mem_lname, m.mem_phone, m.mem_address,
            r.room_number
     FROM stay s
     JOIN `member` m ON s.mem_id = m.mem_id
@@ -388,190 +335,208 @@ $stmt->bind_param("i", $room_id);
 $stmt->execute();
 $stay_result = $stmt->get_result();
 
-if ($stay_result->num_rows > 0):
+if ($stay_result->num_rows > 0) {
     $stay = $stay_result->fetch_assoc();
+    
+
+// เป็นเงื่อนไขใหม่ที่เช็คว่ามีวันที่ออก
+if (!empty($stay['stay_end_date']) && $stay['stay_end_date'] != '0000-00-00') {
+    echo "<p class='text-red-500 font-semibold'>ไม่มีการเข้าพักสำหรับห้องนี้</p>";
+} else {
 ?>
-        <div class="col-md-4">
-            <div class="card mb-2">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-person-fill"></i> <?php echo "ชื่อ: " . $stay['mem_fname'] . " " . $stay['mem_lname']; ?>
-                    </h5>
-                    <p class="card-text">
-                        <i class="bi bi-house-door"></i> <strong>ห้อง:</strong> <?php echo $stay['room_number']; ?><br>
-                        <i class="bi bi-calendar-event"></i> <strong>วันที่เข้า:</strong> <?php echo $stay['stay_start_date']; ?><br>
-                        <i class="bi bi-telephone"></i> <strong>เบอร์โทร:</strong> <?php echo $stay['mem_phone']; ?><br>
-                        <i class="bi bi-house-door"></i> <strong>ที่อยู่:</strong> <?php echo $stay['mem_address']; ?><br>
-                    </p>
-                    <div class="btn-group">
-                        <button class="btn btn-warning me-2" data-bs-toggle="modal" data-bs-target="#editStayModal<?php echo $stay['stay_id']; ?>">
-                            <i class="bi bi-pencil"></i> แก้ไข
-                        </button>
-                        <button class="btn btn-info ms-2" data-bs-toggle="modal" data-bs-target="#rentModal<?php echo $stay['stay_id']; ?>">
-                            <i class="bi bi-cash"></i> คิดค่าเช่า
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-<?php endif; ?>
+    <h1 class="text-2xl font-bold text-gray-800 mb-6">ห้องหมายเลข <?php echo $stay['room_number']; ?></h1>
+   
+    <h2 class="text-xl font-semibold text-gray-700 mb-4">ข้อมูลผู้เข้าพัก</h2>
+        
+    <div class="bg-gray-50 p-4 rounded-lg">
+        <p class="text-gray-600">ชื่อผู้เข้าพัก:</p>
+        <p class="text-gray-800 font-medium"><?php echo $stay['mem_fname'] . " " . $stay['mem_lname']; ?></p>
+        
+        <p class="text-gray-600 mt-2">เบอร์โทรศัพท์:</p>
+        <p class="text-gray-800 font-medium"><?php echo $stay['mem_phone']; ?></p>
+        
+        <p class="text-gray-600 mt-2">ที่อยู่:</p>
+        <p class="text-gray-800 font-medium"><?php echo $stay['mem_address']; ?></p>
+        
+        <p class="text-gray-600 mt-2">วันที่เข้า:</p>
+        <p class="text-gray-800 font-medium">
+            <?php 
+                $stay_start_date = DateTime::createFromFormat('Y-m-d', $stay['stay_start_date']);
+                echo $stay_start_date ? $stay_start_date->format('d/m/Y') : $stay['stay_start_date'];
+            ?>
+        </p>
+        <!-- ค่ามัดจำ -->
+        <p class="text-gray-600 mt-2">ค่ามัดจำ:</p>
+        <p class="text-gray-800 font-medium">
+            <?php echo (!empty($stay['stay_deposit'])) ? number_format($stay['stay_deposit'], 2) . " บาท" : "<span class='text-gray-500'>ไม่มีค่ามัดจำ</span>"; ?>
+        </p>
+    </div>
+
+    <!-- ปุ่มดำเนินการ -->
+    <div class="flex justify-left space-x-4 mt-4">
+        <button onclick="openEditStayModal(<?php echo $stay['stay_id']; ?>)" class="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600">
+            <i class="fas fa-pencil-alt"></i> แก้ไข
+        </button>
+    </div>
+<?php
+    }
+} else {
+    // หากไม่พบการเข้าพักในห้องนี้เลย
+    echo "<p class='text-red-500 font-semibold'>ไม่มีการเข้าพักสำหรับห้องนี้</p>";
+}
+?>
 </div>
 
-
-
-
-<!-- Modal คิดค่าเช่า -->
-<div class="modal fade" id="rentModal<?php echo $stay['stay_id']; ?>" tabindex="-1" aria-labelledby="rentModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="rentModalLabel">คิดค่าเช่า</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<!-- Modal สำหรับแก้ไขข้อมูลการเข้าพัก -->
+<div id="editStayModal<?php echo $stay['stay_id']; ?>" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black bg-opacity-50">
+    <div class="bg-white w-full max-w-2xl p-6 rounded-lg shadow-md">
+        <h3 class="text-xl font-semibold text-gray-800 mb-4">แก้ไขข้อมูลการเข้าพัก</h3>
+        <form method="POST" action="manage_room.php?room_id=<?php echo $room_id; ?>">
+            <!-- เพิ่มฟิลด์ stay_id -->
+            <input type="hidden" name="stay_id" value="<?php echo $stay['stay_id']; ?>">
+            
+            <!-- ฟิลด์เลือกผู้เช่า -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700">เลือกผู้เช่า</label>
+                <select name="mem_id" class="w-full px-3 py-2 mt-1 text-sm text-gray-700 bg-gray-100 border rounded-md" required>
+                    <?php
+                        $members_query = "SELECT mem_id, mem_fname, mem_lname FROM `member`";
+                        $members_result = $conn->query($members_query);
+                        while ($member = $members_result->fetch_assoc()) {
+                            $selected = ($member['mem_id'] == $stay['mem_id']) ? 'selected' : '';
+                            echo "<option value='{$member['mem_id']}' {$selected}>{$member['mem_fname']} {$member['mem_lname']}</option>";
+                        }
+                    ?>
+                </select>
             </div>
-            <div class="modal-body">
-                <form id="invoiceForm" method="POST">
-                    <!-- ช่องฟอร์มทั้งหมดที่คุณมี -->
-                    <div class="mb-3">
-                        <label for="room_id" class="form-label">เลขห้อง</label>
-                        <input type="text" name="room_id" class="form-control" 
-                            value="<?php echo isset($room['room_number']) ? htmlspecialchars($room['room_number']) : ''; ?>" 
-                            required readonly>
-                    </div>
-                    <div class="mb-3">
-                        <label for="rec_room_charge" class="form-label">ค่าห้อง</label>
-                        <input type="number" class="form-control" id="room_price" name="rec_room_charge" 
-                            value="<?php echo isset($room['room_price']) ? $room['room_price'] : 0; ?>" 
-                            required readonly>
-                    </div>
-                    <!-- ค่าไฟ -->
-                            <div class="mb-3">
-                                <label for="rec_electricity" class="form-label">ค่าไฟ (หน่วย)</label>
-                                <input type="number" name="rec_electricity" class="form-control" id="rec_electricity" 
-                                    oninput="calculateTotal()" placeholder="กรอกจำนวนหน่วยค่าไฟ" required>
-                                <small class="form-text text-muted">ค่าหน่วยไฟฟ้าคิดจาก: <?php echo $rate['electricity_rate']; ?> บาท/หน่วย</small>
-                            </div>
 
-                            <!-- ค่าน้ำ -->
-                            <div class="mb-3">
-                                <label for="rec_water" class="form-label">ค่าน้ำ (หน่วย)</label>
-                                <input type="number" name="rec_water" class="form-control" id="rec_water" 
-                                    oninput="calculateTotal()" placeholder="กรอกจำนวนหน่วยค่าน้ำ" required>
-                                <small class="form-text text-muted">ค่าหน่วยน้ำคิดจาก: <?php echo $rate['water_rate']; ?> บาท/หน่วย</small>
-                            </div>
-
-                                                        <!-- ค่าไฟ (บาท) - คำนวณแล้ว -->
-                            <div class="mb-3" style="display: none;">
-                                <label for="rec_electricity_charge" class="form-label">ค่าไฟ (บาท)</label>
-                                <input type="hidden" name="rec_electricity" id="rec_electricity_charge" value="0.00">
-                            </div>
-
-                            <!-- ค่าน้ำ (บาท) - คำนวณแล้ว -->
-                            <div class="mb-3" style="display: none;">
-                                <label for="rec_water_charge" class="form-label">ค่าน้ำ (บาท)</label>
-                                <input type="hidden" name="rec_water" id="rec_water_charge" value="0.00">
-                            </div>
-
-
-                                                <div class="mb-3">
-                        <label for="rec_room_type" class="form-label">ประเภทห้อง</label>
-                        <input type="text" name="rec_room_type" class="form-control" 
-                            value="<?php echo isset($room['room_type']) ? htmlspecialchars($room['room_type']) : ''; ?>" 
-                            required readonly>
+           <!-- วันที่เข้า -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700">วันที่เข้า</label>
+                        <input type="text" name="stay_start_date" id="stay_start_date" class="w-full px-3 py-2 mt-1 text-sm text-gray-700 bg-gray-100 border rounded-md" value="<?php echo date('d/m/Y', strtotime($stay['stay_start_date'])); ?>" required>
                     </div>
-                    <div class="mb-3">
-                        <label for="rec_name" class="form-label">ชื่อผู้เช่า</label>
-                        <input type="text" name="rec_name" class="form-control" 
-                            value="<?php echo isset($stay['mem_fname']) && isset($stay['mem_lname']) 
-                                        ? htmlspecialchars($stay['mem_fname'] . ' ' . $stay['mem_lname']) 
-                                        : ''; ?>" 
-                            readonly>
-                    </div>
-                    <div class="mb-3">
-                        <label for="rec_date" class="form-label">วันที่คิดค่าเช่า</label>
-                        <input type="date" name="rec_date" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="rec_total" class="form-label">รวมทั้งหมด</label>
-                        <input type="text" name="rec_total" class="form-control" id="rec_total" value="0.00" readonly>
-                    </div>
-                    <button type="button" class="btn btn-success" onclick="submitInvoice()">คิดค่าเช่า</button>
-                </form>
+
+                    <script>
+                        document.addEventListener("DOMContentLoaded", function () {
+                            flatpickr("#stay_start_date", {
+                                dateFormat: "d/m/Y", // แสดงวันที่ในรูปแบบ DD/MM/YYYY
+                                defaultDate: "<?php echo date('d/m/Y', strtotime($stay['stay_start_date'])); ?>", // วันที่เริ่มต้นคือวันที่จากฐานข้อมูล
+                            });
+                        });
+                    </script>
+
+            <!-- ค่ามัดจำ -->
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700">ค่ามัดจำ</label>
+                <input type="number" step="0.01" name="stay_deposit" class="w-full px-3 py-2 mt-1 text-sm text-gray-700 bg-gray-100 border rounded-md"
+                    value="<?php echo isset($stay['stay_deposit']) ? $stay['stay_deposit'] : ''; ?>" placeholder="กรอกค่ามัดจำ (ถ้ามี)">
             </div>
-        </div>
+
+            <!-- ปุ่ม Submit และ Cancel -->
+            <div class="flex justify-end space-x-4">
+                <button type="button" onclick="closeEditStayModal(<?php echo $stay['stay_id']; ?>)" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200">ยกเลิก</button>
+                <button type="submit" name="update_stay" class="px-4 py-2 text-sm font-medium text-white bg-blue-500 rounded-lg hover:bg-blue-600">บันทึก</button>
+            </div>
+        </form>
     </div>
 </div>
 
+</form>
+    </div>
+</div>
+<!-- JavaScript สำหรับควบคุม Modal -->
 <script>
+    function openRentModal() {
+        document.getElementById('rentModal').classList.remove('hidden');
+    }
 
-// ฟังก์ชันคำนวณยอดรวม
-function calculateTotal() {
-    var roomPrice = parseFloat(document.getElementById('room_price').value) || 0;
-    var electricityUnit = parseFloat(document.getElementById('rec_electricity').value) || 0;
-    var waterUnit = parseFloat(document.getElementById('rec_water').value) || 0;
+    function closeRentModal() {
+        document.getElementById('rentModal').classList.add('hidden');
+    }
 
-    // รับค่าค่าไฟฟ้าและค่าน้ำจาก PHP
-    var electricityRate = <?php echo $rate['electricity_rate']; ?>; // อัตราค่าไฟฟ้าจากฐานข้อมูล
-    var waterRate = <?php echo $rate['water_rate']; ?>; // อัตราค่าน้ำจากฐานข้อมูล
+    function calculateTotal() {
+        var roomPrice = parseFloat(document.getElementById('room_price').value) || 0;
+        var electricityUnit = parseFloat(document.getElementById('rec_electricity').value) || 0;
+        var waterUnit = parseFloat(document.getElementById('rec_water').value) || 0;
 
-    // คำนวณค่าไฟฟ้าและค่าน้ำ
-    var electricityCharge = electricityUnit * electricityRate;
-    var waterCharge = waterUnit * waterRate;
+        // รับค่าค่าไฟฟ้าและค่าน้ำจาก PHP
+        var electricityRate = <?php echo $rate['electricity_rate']; ?>; // อัตราค่าไฟฟ้าจากฐานข้อมูล
+        var waterRate = <?php echo $rate['water_rate']; ?>; // อัตราค่าน้ำจากฐานข้อมูล
 
-    // คำนวณยอดรวม
-    var total = roomPrice + electricityCharge + waterCharge;
+        // คำนวณค่าไฟฟ้าและค่าน้ำ
+        var electricityCharge = electricityUnit * electricityRate;
+        var waterCharge = waterUnit * waterRate;
 
-    // แสดงผลในช่อง "รวมทั้งหมด"
-    document.getElementById('rec_total').value = total.toFixed(2); // แสดงผลรวมทั้งหมดในฟอร์ม
+        // คำนวณยอดรวม
+        var total = roomPrice + electricityCharge + waterCharge;
 
-    // เก็บค่าที่คำนวณใน input ที่ซ่อน
-    document.getElementById('rec_electricity_charge').value = electricityCharge.toFixed(2);
-    document.getElementById('rec_water_charge').value = waterCharge.toFixed(2);
-}
+        // แสดงผลในช่อง "รวมทั้งหมด"
+        document.getElementById('rec_total').value = total.toFixed(2); // แสดงผลรวมทั้งหมดในฟอร์ม
 
+        // เก็บค่าที่คำนวณใน input ที่ซ่อน
+        document.getElementById('rec_electricity_charge').value = electricityCharge.toFixed(2);
+        document.getElementById('rec_water_charge').value = waterCharge.toFixed(2);
+    }
 
+    function submitInvoice() {
+        // คำนวณยอดรวมก่อน
+        calculateTotal();
 
-function submitInvoice() {
-    // คำนวณยอดรวมก่อน
-    calculateTotal();
+        // หา form
+        var form = document.getElementById('invoiceForm');
+        var formData = new FormData(form);
 
-    // หา form
-    var form = document.getElementById('invoiceForm');
-    var formData = new FormData(form);
+        // เพิ่ม rec_status ใน FormData (ค่าที่ส่งไปในฟอร์ม)
+        formData.append('rec_status', 'รอชำระ'); // ส่งค่า 'รอชำระ' ไป
 
-    // เพิ่ม rec_status ใน FormData (ค่าที่ส่งไปในฟอร์ม)
-    formData.append('rec_status', 'รอชำระ'); // ส่งค่า 'รอชำระ' ไป
+        // ส่งข้อมูลผ่าน AJAX
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "invoice_receipt_form.php", true);
 
-    // ส่งข้อมูลผ่าน AJAX
-    var xhr = new XMLHttpRequest();
-    xhr.open("POST", "invoice_receipt_form.php", true);
-
-    xhr.onload = function () {
-        if (xhr.status === 200) {
-            try {
-                var response = JSON.parse(xhr.responseText); // แปลงข้อมูล JSON ที่ได้รับจากเซิร์ฟเวอร์
-                if (response.success) {
-                    Swal.fire({
-                        title: 'สำเร็จ',
-                        text: 'ข้อมูลถูกบันทึกสำเร็จ',
-                        icon: 'success',
-                        confirmButtonText: 'ตกลง',
-                        width: '300px',  // ลดขนาดหน้าต่าง
-                        padding: '1em', // ปรับ padding
-                        fontSize: '14px',  // ปรับขนาดฟอนต์
-                        buttonsStyling: false,  // ปิดการสไตล์ปุ่มที่มีค่าเริ่มต้น
-                        customClass: {
-                            confirmButton: 'btn btn-success btn-sm',  // ปรับขนาดของปุ่ม
-                        }
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            $('#rentModal<?php echo $stay['stay_id']; ?>').modal('hide'); 
-                            window.location.reload(); // รีเฟรชหน้าเว็บหลังจากบันทึกข้อมูล
-                        }
-                    });
-                } else {
+        xhr.onload = function () {
+            if (xhr.status === 200) {
+                try {
+                    var response = JSON.parse(xhr.responseText); // แปลงข้อมูล JSON ที่ได้รับจากเซิร์ฟเวอร์
+                    if (response.success) {
+                        Swal.fire({
+                            title: 'สำเร็จ',
+                            text: 'ข้อมูลถูกบันทึกสำเร็จ',
+                            icon: 'success',
+                            confirmButtonText: 'ตกลง',
+                            width: '300px',  // ลดขนาดหน้าต่าง
+                            padding: '1em', // ปรับ padding
+                            fontSize: '14px',  // ปรับขนาดฟอนต์
+                            buttonsStyling: false,  // ปิดการสไตล์ปุ่มที่มีค่าเริ่มต้น
+                            customClass: {
+                                confirmButton: 'btn btn-success btn-sm',  // ปรับขนาดของปุ่ม
+                            }
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                closeRentModal();
+                                window.location.reload(); // รีเฟรชหน้าเว็บหลังจากบันทึกข้อมูล
+                            }
+                        });
+                    } else {
+                        Swal.fire({
+                            title: 'เกิดข้อผิดพลาด',
+                            text: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + response.message,
+                            icon: 'error',
+                            confirmButtonText: 'ตกลง',
+                            width: '300px',
+                            padding: '1em',
+                            fontSize: '14px',
+                            buttonsStyling: false,
+                            customClass: {
+                                confirmButton: 'btn btn-danger btn-sm',
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error('ไม่สามารถแปลงข้อมูลเป็น JSON ได้:', e);
+                    console.error('ข้อมูลที่ได้รับจากเซิร์ฟเวอร์:', xhr.responseText);
                     Swal.fire({
                         title: 'เกิดข้อผิดพลาด',
-                        text: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล: ' + response.message,
+                        text: 'ไม่สามารถแปลงข้อมูลเป็น JSON ได้',
                         icon: 'error',
                         confirmButtonText: 'ตกลง',
                         width: '300px',
@@ -583,12 +548,10 @@ function submitInvoice() {
                         }
                     });
                 }
-            } catch (e) {
-                console.error('ไม่สามารถแปลงข้อมูลเป็น JSON ได้:', e);
-                console.error('ข้อมูลที่ได้รับจากเซิร์ฟเวอร์:', xhr.responseText);
+            } else {
                 Swal.fire({
                     title: 'เกิดข้อผิดพลาด',
-                    text: 'ไม่สามารถแปลงข้อมูลเป็น JSON ได้',
+                    text: 'เกิดข้อผิดพลาดในการติดต่อเซิร์ฟเวอร์',
                     icon: 'error',
                     confirmButtonText: 'ตกลง',
                     width: '300px',
@@ -600,127 +563,55 @@ function submitInvoice() {
                     }
                 });
             }
-        } else {
-            Swal.fire({
-                title: 'เกิดข้อผิดพลาด',
-                text: 'เกิดข้อผิดพลาดในการติดต่อเซิร์ฟเวอร์',
-                icon: 'error',
-                confirmButtonText: 'ตกลง',
-                width: '300px',
-                padding: '1em',
-                fontSize: '14px',
-                buttonsStyling: false,
-                customClass: {
-                    confirmButton: 'btn btn-danger btn-sm',
-                }
-            });
-        }
-    };
+        };
 
-    xhr.send(formData); // ส่งข้อมูลฟอร์ม
+        xhr.send(formData); // ส่งข้อมูลฟอร์ม
+    }
+    function openAddStayModal() {
+    document.getElementById('addStayModal').classList.remove('hidden');
 }
 
-
+function closeAddStayModal() {
+    document.getElementById('addStayModal').classList.add('hidden');
+}
 </script>
-
-
-<!-- Modal สำหรับแก้ไขข้อมูลการเข้าพัก -->
-<div class="modal fade" id="editStayModal<?php echo $stay['stay_id']; ?>" tabindex="-1" aria-labelledby="editStayModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editStayModalLabel">
-                    <i class="bi bi-pencil"></i> แก้ไขข้อมูลการเข้าพัก
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form method="POST" action="manage_room.php?room_id=<?php echo $room_id; ?>" id="editStayForm<?php echo $stay['stay_id']; ?>">
-                    <!-- ฟิลด์เลือกผู้เช่า -->
-                    <div class="mb-3">
-                        <label for="mem_id" class="form-label"><i class="bi bi-person-circle"></i> เลือกผู้เช่า</label>
-                        <select name="mem_id" class="form-control" required>
-                            <option value="">เลือกผู้เช่า</option>
-                            <?php
-                                $members_query = "SELECT mem_id, mem_fname, mem_lname FROM `member`";
-                                $members_result = $conn->query($members_query);
-
-                                while ($member = $members_result->fetch_assoc()) {
-                                    $selected = ($member['mem_id'] == $stay['mem_id']) ? 'selected' : '';
-                                    echo "<option value='{$member['mem_id']}' {$selected}>{$member['mem_fname']} {$member['mem_lname']}</option>";
-                                }
-                            ?>
-                        </select>
-                    </div>
-                    
-                    <!-- วันที่เข้า -->
-                    <div class="mb-3">
-                        <label for="stay_start_date" class="form-label"><i class="bi bi-calendar-event"></i> วันที่เข้า</label>
-                        <input type="date" name="stay_start_date" class="form-control" value="<?php echo $stay['stay_start_date']; ?>" required>
-                    </div>
-                    
-                    
-                    <input type="hidden" name="stay_id" value="<?php echo $stay['stay_id']; ?>">
-                    <button type="submit" name="update_stay" class="btn btn-primary w-100">
-                        <i class="bi bi-save"></i> อัพเดตข้อมูลการเข้าพัก
-                    </button>
-                </form>
-            </div>
-        </div>
     </div>
-</div>
+    
+    <!-- JavaScript สำหรับควบคุม Modal -->
+    <script>
+        function openModal() {
+            document.getElementById('bookingModal').classList.remove('hidden');
+        }
 
-<!-- Modal สำหรับการเพิ่มข้อมูลการเข้าพัก -->
-<div class="modal fade" id="addStayModal" tabindex="-1" aria-labelledby="addStayModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="addStayModalLabel">
-                    <i class="bi bi-plus-circle"></i> เพิ่มข้อมูลการเข้าพัก
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <form method="POST" action="manage_room.php?room_id=<?php echo $room_id; ?>">
-                    <!-- ฟิลด์เลือกผู้เช่า -->
-                    <div class="mb-3">
-                        <label for="mem_id" class="form-label"><i class="bi bi-person-circle"></i> เลือกผู้เช่า</label>
-                        <select name="mem_id" class="form-control" required>
-                            <option value="">เลือกผู้เช่า</option>
-                            <?php
-                                $members_query = "SELECT mem_id, mem_fname, mem_lname FROM `member`";
-                                $members_result = $conn->query($members_query);
-                                while ($member = $members_result->fetch_assoc()) {
-                                    echo "<option value='{$member['mem_id']}'>{$member['mem_fname']} {$member['mem_lname']}</option>";
-                                }
-                            ?>
-                        </select>
-                    </div>
-                    
-                    <!-- วันที่เข้า -->
-                    <div class="mb-3">
-                        <label for="stay_start_date" class="form-label"><i class="bi bi-calendar-event"></i> วันที่เข้า</label>
-                        <input type="date" name="stay_start_date" class="form-control" required>
-                    </div>
-                    
-                    <input type="hidden" name="room_id" value="<?php echo $room_id; ?>">
-                    <button type="submit" name="add_stay" class="btn btn-primary w-100">
-                        <i class="bi bi-save"></i> เพิ่มข้อมูลการเข้าพัก
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
+        function closeModal() {
+            document.getElementById('bookingModal').classList.add('hidden');
+        }
 
-<?php
+        function submitBooking() {
+            const memberName = document.getElementById('member_name').value;
+            const checkInDate = document.getElementById('check_in_date').value;
 
-include('receipt_list.php');
+            if (!memberName || !checkInDate) {
+                alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+                return;
+            }
 
-?>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+            alert(`บันทึกข้อมูลสำเร็จ!\nชื่อผู้เข้าพัก: ${memberName}\nวันที่เข้า: ${checkInDate}`);
+            closeModal();
+        }
+        function openEditStayModal(stayId) {
+    // เปิด Modal สำหรับแก้ไขข้อมูลการเข้าพัก
+    document.getElementById('editStayModal' + stayId).classList.remove('hidden');
+}
 
+function closeEditStayModal(stayId) {
+    // ปิด Modal สำหรับแก้ไขข้อมูลการเข้าพัก
+    document.getElementById('editStayModal' + stayId).classList.add('hidden');
+}
+    </script>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
 </body>
+
 </html>

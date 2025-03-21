@@ -1,290 +1,259 @@
-<?php 
-include('../includes/db.php');
-include('../includes/navbar_admin.php');
-?>
-
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="../css/admin_dashboard.css">
-    <title>Dashboard</title>
-</head>
-<body>
-    <div class="container mt-4">
-        <h2 class="text-center">ระบบจัดการห้องพัก</h2>
-
-        <div class="row mt-4">
-            <div class="col-md-3">
-                <div class="card text-white bg-primary mb-3">
-                    <div class="card-header">
-                    <i class="fas fa-bed"></i> ห้อง
-                    </div>
-                <div class="card-body">
-                    <?php
-                    $roomQuery = "SELECT COUNT(*) as room_count FROM room";
-                    $roomResult = $conn->query($roomQuery);
-                    if ($roomResult && $roomResult->num_rows > 0) {
-                        $roomData = $roomResult->fetch_assoc();
-                        echo "<h5 class='card-title'>{$roomData['room_count']} ห้อง </h5>";
-                    } else {
-                        echo "<h5 class='card-title'>ไม่สามารถดึงข้อมูลได้</h5>";
-                    }
-                    ?>
-                    <p class="card-text" onclick="location.href='#rooms-all'">ดูรายละเอียดห้องพัก</p>
-</div>
-            </div>
-</div>
-
-<!-- Card 2: สมาชิก -->
-<div class="col-md-3">
-    <div class="card text-white bg-warning mb-3">
-        <div class="card-header">
-            <i class="fas fa-users"></i> ผู้เข้าพัก
-        </div>
-        <div class="card-body">
-            <?php
-            $memberQuery = "SELECT COUNT(*) as member_count FROM `member`";
-            $memberResult = $conn->query($memberQuery);
-            if ($memberResult && $memberResult->num_rows > 0) {
-                $memberData = $memberResult->fetch_assoc();
-                echo "<h5 class='card-title'>{$memberData['member_count']} คน </h5>";
-            } else {
-                echo "<h5 class='card-title'>ไม่สามารถดึงข้อมูลได้</h5>";
-            }
-            ?>
-            <p class="card-text" onclick="location.href='manage_member.php'">ดูข้อมูลผู้เข้าพัก</p>
-        </div>
-    </div>
-</div>
-
-<!-- Card 3: การแจ้งซ่อม -->
-<div class="col-md-3">
-    <div class="card text-white bg-danger mb-3">
-        <div class="card-header">
-            <i class="fas fa-tools"></i> การแจ้งซ่อม
-        </div>
-        <div class="card-body">
-            <?php
-            // Query to count repair requests
-            $repairQuery = "SELECT COUNT(*) as repair_count FROM repair_requests";
-            $repairResult = $conn->query($repairQuery);
-            if ($repairResult) {
-                $repairData = $repairResult->fetch_assoc();
-                echo "<h5 class='card-title'>{$repairData['repair_count']} รายการ </h5>";
-            } else {
-                echo "<h5 class='card-title'>ไม่สามารถดึงข้อมูลได้</h5>";
-            }
-            ?>
-            <p class="card-text" onclick="location.href='repair_management.php'">ดูการแจ้งซ่อมทั้งหมด</p>
-        </div>
-    </div>
-</div>
-
-<!-- Card 4: การชำระเงิน -->
-<div class="col-md-3">
-    <div class="card text-white bg-success mb-3">
-        <div class="card-header">
-            <i class="fas fa-credit-card"></i> การชำระเงินทั้งหมด
-        </div>
-        <div class="card-body">
-            <?php
-            $paymentQuery = "SELECT SUM(pay_total) as total_payment FROM payments";
-            $paymentResult = $conn->query($paymentQuery);
-
-            if ($paymentResult && $paymentResult->num_rows > 0) {
-                $paymentData = $paymentResult->fetch_assoc();
-                echo "<h5 class='card-title'>". number_format($paymentData['total_payment'], 2) . " bath</h5>";
-            } else {
-                echo "<h5 class='card-title'>ไม่สามารถดึงข้อมูลได้</h5>";
-            }
-            ?>
-            <p class="card-text" onclick="location.href='manage_payment.php'">ดูรายการการชำระเงิน</p>
-        </div>
-    </div>
-</div>
-
 <?php
-// ตัวแปรสำหรับเก็บจำนวนห้องว่างและมีผู้เช่า
-$vacantCount = 0;
-$rentedCount = 0;
+session_start();
 
-// คิวรีข้อมูลห้อง
-$roomQuery = "SELECT * FROM room";
-$roomResult = $conn->query($roomQuery);
-
-// ตรวจสอบว่าเรามีข้อมูลห้องหรือไม่
-if ($roomResult && $roomResult->num_rows > 0) {
-    // คำนวณจำนวนห้องว่างและห้องที่มีผู้เช่า
-    while ($room = $roomResult->fetch_assoc()) {
-        if ($room['room_status'] == 'ว่าง') {
-            $vacantCount++;
-        } else {
-            $rentedCount++;
-        }
-    }
+if (!isset($_SESSION['ad_user'])) {
+    header("Location: ../login.php");
+    exit();
 }
-?>
 
-<h2 id="rooms-all" class="text-left mb-4" style="font-size: 1.25rem; font-weight: bold;">
-    ห้องทั้งหมด
-    <small class="text-muted" style="font-size: 0.9rem;">
-        (ห้องว่าง: <span class="text-success"><?= $vacantCount ?></span> ห้อง | 
-        มีผู้เช่า: <span class="text-danger"><?= $rentedCount ?></span> ห้อง)
-    </small>
-</h2>
+include('../includes/db.php');
 
-<div class="row">
-<?php
+if (isset($_SESSION['ad_user'])) {
+    $ad_user = $_SESSION['ad_user'];
 
-if ($roomResult && $roomResult->num_rows > 0) {
+    // ดึงข้อมูลห้องพักพร้อมกรองสถานะ
+    $room_status_filter = isset($_GET['room_status']) ? $_GET['room_status'] : '';
+    $query_rooms = "SELECT room_id, room_number, room_type, room_price, room_status FROM room";
+    if (!empty($room_status_filter)) {
+        $query_rooms .= " WHERE room_status = '$room_status_filter'";
+    }
+    $result_rooms = $conn->query($query_rooms);
 
-    $roomResult = $conn->query($roomQuery);
-    while ($room = $roomResult->fetch_assoc()) {
-        echo "
-        <div class='col-md-3 mb-3'> 
-            <div class='card shadow-lg border-0' style='font-size: 0.85rem; padding: 15px; border-radius: 10px; background-color: #f8f9fa; transition: transform 0.3s;'>
-                <div class='card-header' style='font-size: 1rem; font-weight: bold; background-color:rgb(95, 95, 95); color: white; border-radius: 10px;'>
-                    <i class='fas fa-door-closed'></i> ห้อง {$room['room_number']}
-                </div>
-                <div class='card-body'>
-                    <p class='card-text' style='font-size: 0.85rem;'>
-                        <i class='fas fa-list-alt'></i> ประเภทห้อง: {$room['room_type']}
-                    </p>
-                    <p class='card-text' style='font-size: 0.85rem;'>
-                        <i class='fas fa-tag'></i> ราคา: {$room['room_price']} บาท
-                    </p>
-                    <p class='card-text " . ($room['room_status'] == 'ว่าง' ? 'text-success' : 'text-danger') . "' style='font-size: 0.85rem;'>
-                        <i class='fas fa-info-circle'></i> สถานะ: {$room['room_status']}
-                    </p>
-                    <div class='d-grid gap-2'>
-                        <a href='manage_room.php?room_id={$room['room_id']}' class='btn btn-warning btn-sm'>
-                            <i class='fas fa-cog'></i> จัดการห้องพัก
-                        </a>  
-                        <button type='button' class='btn btn-primary btn-sm' data-bs-toggle='modal' data-bs-target='#editroom{$room['room_id']}'>
-                            <i class='fas fa-edit'></i> แก้ไข
-                        </button>  
-                    </div>
-                </div>
-            </div>
-        </div>
-        ";
+    // ดึงข้อมูลผู้ดูแลระบบ
+    $query = "SELECT ad_fname, ad_lname, ad_user FROM admin WHERE ad_user = '$ad_user'";
+    $result = $conn->query($query);
+
+    if ($result && $result->num_rows > 0) {
+        $admin = $result->fetch_assoc();
+        $ad_fname = $admin['ad_fname'];
+        $ad_lname = $admin['ad_lname'];
+        $ad_user = $admin['ad_user'];
+    } else {
+        echo "ไม่สามารถดึงข้อมูลโปรไฟล์ได้.";
     }
 } else {
-    echo "<p>ไม่พบข้อมูลห้อง</p>";
+    echo "กรุณาล็อกอิน.";
 }
 ?>
-</div>
+<!DOCTYPE html>
+<html :class="{ 'theme-dark': dark }" x-data="data()" lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ระบบจัดการหอพัก</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="./assets/css/tailwind.output.css" />
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/gh/alpinejs/alpine@v2.x.x/dist/alpine.min.js" defer></script>
+    <script src="./assets/js/init-alpine.js"></script>
+</head>
+<body>
+    <div class="flex h-screen bg-gray-50 dark:bg-gray-900" :class="{ 'overflow-hidden': isSideMenuOpen }">
+        <?php include 'includes/sidebar.php'; ?>
 
+        <main class="h-full overflow-y-auto">
+            <div class="container px-6 mx-auto grid">
+                <h2 class="my-6 text-2xl font-semibold text-gray-700 dark:text-gray-200">Dashboard</h2>
 
+                <div class="grid gap-6 mb-8 md:grid-cols-2 xl:grid-cols-4">
+                        <?php
+                        $cards = [
+                            ['query' => "SELECT COUNT(*) as member_count FROM `member`", 'icon' => 'fas fa-users', 'color' => 'orange', 'title' => 'ผู้เข้าพัก', 'unit' => 'คน'],
+                            ['query' => "SELECT SUM(pay_total) as total_payment FROM payments", 'icon' => 'fas fa-credit-card', 'color' => 'green', 'title' => 'การชำระเงิน', 'unit' => ' bath'],
+                            ['query' => "SELECT COUNT(*) as room_count FROM room", 'icon' => 'fas fa-bed', 'color' => 'blue', 'title' => 'ห้องพัก', 'unit' => 'ห้อง'],
+                            ['query' => "SELECT COUNT(*) as repair_count FROM repair_requests", 'icon' => 'fa-solid fa-wrench', 'color' => 'teal', 'title' => 'การแจ้งซ่อม', 'unit' => 'รายการ']
+                        ];
 
-        <!-- Modal แก้ไข -->
-        <?php
-        // ดึงข้อมูลห้องมาแสดงใน Modal
-        $roomResult = $conn->query($roomQuery);
-        while ($room = $roomResult->fetch_assoc()) {
-        ?>
-            <div class="modal fade" id="editroom<?php echo $room['room_id']; ?>" tabindex="-1" aria-labelledby="editModalLabel<?php echo $room['room_id']; ?>" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <!-- ฟอร์มแก้ไขข้อมูลห้อง -->
-                            <form id="editRoomForm<?php echo $room['room_id']; ?>" method="POST" onsubmit="event.preventDefault(); updateRoom(<?php echo $room['room_id']; ?>);">
-                                <input type="hidden" name="room_id" value="<?php echo $room['room_id']; ?>">
-
-                                <div class="mb-3">
-                                    <label for="room_number" class="form-label">เลขห้อง</label>
-                                    <input type="text" class="form-control" id="room_number" name="room_number" value="<?php echo $room['room_number']; ?>" required>
+                        foreach ($cards as $card) {
+                            $result = $conn->query($card['query']);
+                            $data = $result ? $result->fetch_assoc() : null;
+                            $count = $data ? reset($data) : 'ไม่สามารถดึงข้อมูลได้';
+                            echo "
+                            <div class='flex items-center p-4 bg-white rounded-lg shadow-xs dark:bg-gray-800'>
+                                <div class='p-3 mr-4 text-{$card['color']}-500 bg-{$card['color']}-100 rounded-full dark:text-{$card['color']}-100 dark:bg-{$card['color']}-500'>
+                                    <i class='{$card['icon']} text-3xl'></i> <!-- ปรับขนาดไอคอนให้ใหญ่ขึ้น -->
                                 </div>
-
-                                <div class="mb-3">
-                                    <label for="room_type" class="form-label">ประเภทห้อง</label>
-                                    <select class="form-select" id="room_type" name="room_type" required>
-                                        <option value="แอร์" <?php echo ($room['room_type'] == 'แอร์') ? 'selected' : ''; ?>>แอร์</option>
-                                        <option value="พัดลม" <?php echo ($room['room_type'] == 'พัดลม') ? 'selected' : ''; ?>>พัดลม</option>
-                                    </select>
+                                <div>
+                                    <p class='mb-2 text-sm font-medium text-gray-600 dark:text-gray-400'>{$card['title']}</p>
+                                    <p class='text-lg font-semibold text-gray-700 dark:text-gray-200'>{$count} {$card['unit']}</p>
                                 </div>
-
-                                <div class="mb-3">
-                                    <label for="room_price" class="form-label">ราคา</label>
-                                    <input type="number" class="form-control" id="room_price" name="room_price" value="<?php echo $room['room_price']; ?>" required>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="room_status" class="form-label">สถานะห้อง</label>
-                                    <select class="form-select" id="room_status" name="room_status" required>
-                                        <option value="ว่าง" <?php echo ($room['room_status'] == 'ว่าง') ? 'selected' : ''; ?>>ว่าง</option>
-                                        <option value="มีผู้เช่า" <?php echo ($room['room_status'] == 'มีผู้เช่า') ? 'selected' : ''; ?>>มีผู้เช่า</option>
-                                        <option value="ซ่อมแซม" <?php echo ($room['room_status'] == 'ซ่อมแซม') ? 'selected' : ''; ?>>ซ่อมแซม</option>
-                                    </select>
-                                </div>
-                                <div class='d-grid gap-2'>
-                                <button type="submit" class="btn btn-warning">บันทึกการเปลี่ยนแปลง</button>
-                                <button type="button" class="btn btn-danger" onclick="deleteRoom(<?php echo $room['room_id']; ?>)">ลบข้อมูลห้อง</button>
-                                </div>
-
-                            </form>
-                        </div>
+                            </div>
+                            ";
+                        }
+                        ?>
                     </div>
+
+
+                <!-- ปุ่มสลับโหมด -->
+                <div class="flex justify-end mb-6">
+                    <button id="toggleViewBtn" class="text-lg font-semibold text-gray-700 dark:text-gray-200 transition-opacity">
+                        <i class="fas fa-table"></i> Viewlist
+                    </button>
+                </div>
+
+                <!-- โหมดการ์ด -->
+                <div id="cardView">
+                    <?php
+                    if ($result_rooms && $result_rooms->num_rows > 0) {
+                        echo "<div class='flex justify-between items-center mb-4'>
+                                <h2 id='rooms-all' class='text-lg font-semibold text-gray-700 dark:text-gray-200'>ห้องทั้งหมด</h2>
+                                <form method='GET' class='flex items-center space-x-2'>
+                                    <label class='text-gray-700 dark:text-gray-300'>กรองสถานะห้อง:</label>
+                                    <select name='room_status' onchange='this.form.submit()' class='border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 p-2 rounded'>
+                                        <option value=''>ทั้งหมด</option>
+                                        <option value='ว่าง' " . ($room_status_filter == 'ว่าง' ? 'selected' : '') . ">ว่าง</option>
+                                        <option value='มีผู้เช่า' " . ($room_status_filter == 'มีผู้เช่า' ? 'selected' : '') . ">มีผู้เช่า</option>
+                                        <option value='อยู่ระหว่างปรับปรุง' " . ($room_status_filter == 'อยู่ระหว่างปรับปรุง' ? 'selected' : '') . ">อยู่ระหว่างปรับปรุง</option>
+                                    </select>
+                                </form>
+                              </div>";
+                        echo "<div class='grid gap-6 mb-8 md:grid-cols-2 xl:grid-cols-4'>";
+
+                        while ($room = $result_rooms->fetch_assoc()) {
+                            $room_id = $room['room_id'];
+                            $room_number = $room['room_number'];
+                            $room_type = $room['room_type'];
+                            $room_price = $room['room_price'];
+                            $room_status = $room['room_status'];
+
+                            
+                            $room_status_color = '';
+                            if ($room_status == 'ว่าง') {
+                                $room_status_color = 'text-green-500';
+                            } elseif ($room_status == 'มีผู้เช่า') {
+                                $room_status_color = 'text-red-500';
+                            } elseif ($room_status == 'อยู่ระหว่างปรับปรุง') {
+                                $room_status_color = 'text-yellow-500';
+                            } else {
+                                $room_status_color = 'text-gray-500';
+                            }
+
+                            echo "
+                            <div class='flex items-center p-4 bg-white rounded-lg shadow-md border border-gray-300 dark:bg-gray-800 dark:border-gray-600'>
+                                <div class='p-3 mr-4 text-blue-500 bg-blue-100 rounded-full dark:text-blue-100 dark:bg-blue-500'>
+                                    <i class='fas fa-bed'></i>
+                                </div>
+                                <div>
+                                    <p class='mb-2 text-sm font-medium text-gray-600 dark:text-gray-400'>ห้อง {$room_number}</p>
+                                    <p class='text-lg font-semibold text-gray-700 dark:text-gray-200'>ประเภท: {$room_type}</p>
+                                    <p class='text-sm text-gray-600 dark:text-gray-400'>ราคา: {$room_price} บาท</p>
+                                    <p class='text-sm font-semibold {$room_status_color}'>สถานะ: {$room_status}</p>
+                                    <div class='mt-3 flex'>
+                                        <a href='edit_room.php?room_id={$room_id}' class='text-blue-500 hover:text-blue-700 text-sm font-semibold mr-4'>
+                                            <i class='fas fa-edit'></i> แก้ไข
+                                        </a>
+                                        <a href='manage_room.php?room_id={$room_id}' class='text-green-500 hover:text-green-700 text-sm font-semibold'>
+                                            <i class='fas fa-cogs'></i> จัดการห้องพัก
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>";
+                        }
+                        echo "</div>";
+                    } else {
+                        echo "<p class='text-gray-600 dark:text-gray-400'>ไม่พบข้อมูลห้องพัก</p>";
+                    }
+                    ?>
+                </div>
+
+                <!-- โหมดตาราง -->
+                <div id="tableView" class="hidden">
+                    <?php
+                    if ($result_rooms && $result_rooms->num_rows > 0) {
+                        echo "<div class='flex justify-between items-center my-4'>
+                                <h2 id='rooms-all' class='text-lg font-semibold text-gray-700 dark:text-gray-300'>ห้องทั้งหมด</h2>
+                                <form method='GET' class='flex items-center space-x-2'>
+                                    <label class='text-gray-700 dark:text-gray-300'>กรองสถานะห้อง:</label>
+                                    <select name='room_status' onchange='this.form.submit()' class='border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 p-2 rounded'>
+                                        <option value=''>ทั้งหมด</option>
+                                        <option value='ว่าง' " . ($room_status_filter == 'ว่าง' ? 'selected' : '') . ">ว่าง</option>
+                                        <option value='มีผู้เช่า' " . ($room_status_filter == 'มีผู้เช่า' ? 'selected' : '') . ">มีผู้เช่า</option>
+                                        <option value='อยู่ระหว่างปรับปรุง' " . ($room_status_filter == 'อยู่ระหว่างปรับปรุง' ? 'selected' : '') . ">อยู่ระหว่างปรับปรุง</option>
+                                    </select>
+                                </form>
+                              </div>";
+
+                        echo "<div class='bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-x-auto'>
+                                <table class='w-full'>
+                                    <thead class='bg-gray-50 dark:bg-gray-700'>
+                                        <tr>
+                                            <th class='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider'>ห้อง</th>
+                                            <th class='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider'>ประเภท</th>
+                                            <th class='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider'>ราคา</th>
+                                            <th class='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider'>สถานะ</th>
+                                            <th class='px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider'>จัดการ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class='bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700'>";
+
+                        $result_rooms->data_seek(0); // รีเซ็ต pointer ของผลลัพธ์
+                        while ($room = $result_rooms->fetch_assoc()) {
+                            $room_id = $room['room_id'];
+                            $room_number = $room['room_number'];
+                            $room_type = $room['room_type'];
+                            $room_price = $room['room_price'];
+                            $room_status = $room['room_status'];
+
+                            // กำหนดสีของสถานะห้อง
+                            $room_status_color = '';
+                            if ($room_status == 'ว่าง') {
+                                $room_status_color = 'text-green-500';
+                            } elseif ($room_status == 'มีผู้เช่า') {
+                                $room_status_color = 'text-red-500';
+                            } elseif ($room_status == 'อยู่ระหว่างปรับปรุง') {
+                                $room_status_color = 'text-yellow-500';
+                            } else {
+                                $room_status_color = 'text-gray-500';
+                            }
+
+                            echo "
+                            <tr>
+                                <td class='px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300'>ห้อง {$room_number}</td>
+                                <td class='px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300'>{$room_type}</td>
+                                <td class='px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300'>{$room_price} บาท</td>
+                                <td class='px-4 py-4 whitespace-nowrap text-sm {$room_status_color}'>{$room_status}</td>
+                                <td class='px-4 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300'>
+                                    <a href='edit_room.php?room_id={$room_id}' class='text-blue-500 hover:text-blue-700 mr-4'>
+                                        <i class='fas fa-edit'></i> แก้ไข
+                                    </a>
+                                    <a href='manage_room.php?room_id={$room_id}' class='text-green-500 hover:text-green-700'>
+                                        <i class='fas fa-cogs'></i> จัดการ
+                                    </a>
+                                </td>
+                            </tr>";
+                        }
+                        echo "</tbody>
+                            </table>
+                          </div>";
+                    } else {
+                        echo "<p class='text-gray-600 dark:text-gray-400'>ไม่พบข้อมูลห้องพัก</p>";
+                    }
+                    ?>
                 </div>
             </div>
-        <?php } ?>
-
+        </main>
     </div>
 
+    <!-- JavaScript สำหรับสลับโหมด -->
     <script>
-    function updateRoom(room_id) {
-        const form = document.getElementById('editRoomForm' + room_id);
-        const formData = new FormData(form);
+        const toggleViewBtn = document.getElementById('toggleViewBtn');
+        const cardView = document.getElementById('cardView');
+        const tableView = document.getElementById('tableView');
 
-        fetch('update_room.php', {
-            method: 'POST',
-            body: formData
-        }).then(response => response.json())
-          .then(data => {
-              if (data.success) {
-                  alert('ข้อมูลห้องพักถูกอัปเดตเรียบร้อยแล้ว');
-                  location.reload();
-              } else {
-                  alert('เกิดข้อผิดพลาดในการอัปเดตข้อมูล');
-              }
-          }).catch(error => {
-              alert('เกิดข้อผิดพลาด: ' + error);
-          });
-    }
-
-    function deleteRoom(room_id) {
-        if (confirm('คุณต้องการลบข้อมูลห้องนี้หรือไม่?')) {
-            fetch('delete_room.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ room_id: room_id })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('ข้อมูลห้องพักถูกลบเรียบร้อยแล้ว');
-                    location.reload();  // รีเฟรชหน้าเพื่อแสดงผลการเปลี่ยนแปลง
-                } else {
-                    alert('เกิดข้อผิดพลาดในการลบข้อมูล');
-                }
-            })
-            .catch(error => {
-                alert('เกิดข้อผิดพลาดในการติดต่อเซิร์ฟเวอร์');
-            });
-        }
-    }
+        toggleViewBtn.addEventListener('click', () => {
+            if (cardView.classList.contains('hidden')) {
+                // สลับไปโหมดการ์ด
+                cardView.classList.remove('hidden');
+                tableView.classList.add('hidden');
+                toggleViewBtn.innerHTML = "<i class='fas fa-table'></i> Viewlist";
+            } else {
+                // สลับไปโหมดตาราง
+                cardView.classList.add('hidden');
+                tableView.classList.remove('hidden');
+                toggleViewBtn.innerHTML = "<i class='fas fa-th-large'></i> Viewcard";
+            }
+        });
     </script>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    
 </body>
 </html>

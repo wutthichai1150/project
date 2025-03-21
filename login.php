@@ -84,11 +84,14 @@ if (isset($_POST['login'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- SweetAlert2 -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- Custom CSS -->
     <link rel="stylesheet" href="css/login.css">
-
-    
 </head>
 <body> 
     <div class="container d-flex justify-content-center align-items-start">
@@ -109,19 +112,32 @@ if (isset($_POST['login'])) {
                 <?php } ?>
 
                 <form method="POST" action="">
+                    <!-- Username Field -->
                     <div class="mb-3">
-                        <label for="mem_user" class="form-label">Username</label>
+                        <label for="mem_user" class="form-label">
+                            <i class="bi bi-person-fill"></i> Username
+                        </label>
                         <input type="text" name="mem_user" class="form-control" required>
                     </div>
+
+                    <!-- Password Field -->
                     <div class="mb-3">
-                        <label for="mem_password" class="form-label">Password</label>
+                        <label for="mem_password" class="form-label">
+                            <i class="bi bi-lock-fill"></i> Password
+                        </label>
                         <input type="password" name="mem_password" class="form-control" required>
                     </div>
+
+                    <!-- Login Button -->
                     <button type="submit" name="login" class="btn btn-primary w-100 py-2">
-                        Login
+                        <i class="bi bi-box-arrow-in-right"></i> Login
                     </button>
                 </form>
-                <p class="text-center mt-3">ยังไม่มีบัญชี? <a href="register.php">ลงทะเบียนที่นี่</a></p>
+
+                <!-- Contact Admin Link -->
+                <p class="text-center mt-3">
+                    <i class="bi bi-headset"></i> ติดต่อผู้ดูแล <a href="https://line.me/ti/p/U4MBM122n9">ติดต่อผู้ดูแลตรงนี้</a>
+                </p>
             </div>
         </div>
     </div>

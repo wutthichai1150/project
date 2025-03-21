@@ -44,14 +44,14 @@ if ($result->num_rows > 0) {
             <?php
             $username = $_SESSION['mem_user'];
             $query = "
-    SELECT * FROM room 
-    WHERE room_id IN (
-        SELECT room_id 
-        FROM stay 
-        WHERE mem_id = (SELECT mem_id FROM `member` WHERE mem_user = ?) 
-        AND stay_end_date IS NULL  -- กรองห้องที่ยังไม่มีวันที่สิ้นสุดการเข้าพัก
-    )
-";
+            SELECT * FROM room 
+            WHERE room_id IN (
+                SELECT room_id 
+                FROM stay 
+                WHERE mem_id = (SELECT mem_id FROM `member` WHERE mem_user = ?) 
+                AND (stay_end_date IS NULL OR stay_end_date = '0000-00-00')
+            );
+        ";  // ปิดสตริงด้วย "
 
         
         
